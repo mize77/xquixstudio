@@ -1328,6 +1328,16 @@
     </div>
   </div>
 </div>
+<div id="guestWelcomeScreen" class="guestOverlay">
+  <div class="guestOverlayBox">
+    <h1>Welcome to XquiX Studio</h1>
+    <div id="guestWelcomeMessage"></div>
+    <div class="guestOverlayButtons">
+      <button type="button" id="guestWelcomeContinueBtn">Continue</button>
+      <button type="button" id="guestWelcomeSkipBtn">Skip for Now</button>
+    </div>
+  </div>
+</div>
 <div id="guestCompletionScreen" class="guestOverlay">
   <div class="guestOverlayBox">
     <h1>Congratulations!</h1>
@@ -6441,12 +6451,12 @@ document.getElementById('devPreviewRealTutorialBtn')?.addEventListener('click', 
 function guestOverlayEl(id){ return document.getElementById(id); }
 
 function showGuestOverlay(id){
-  ['guestExitConfirmOverlay','guestCompletionScreen','guestErrorScreen'].forEach(other=>{
+  ['guestWelcomeScreen','guestExitConfirmOverlay','guestCompletionScreen','guestErrorScreen'].forEach(other=>{
     guestOverlayEl(other)?.classList.toggle('open', other===id);
   });
 }
 function hideGuestOverlays(){
-  ['guestExitConfirmOverlay','guestCompletionScreen','guestErrorScreen'].forEach(id=>{
+  ['guestWelcomeScreen','guestExitConfirmOverlay','guestCompletionScreen','guestErrorScreen'].forEach(id=>{
     guestOverlayEl(id)?.classList.remove('open');
   });
 }
@@ -6578,11 +6588,73 @@ async function startGuestExperience(){
     await waitForIntroAnimation();
     if(!verifyTutorialAssets()) throw new Error('XquiX Studio Experience: required tutorial assets are missing.');
     prepareGuestInterface();
+    await showGuestWelcomeScreenIfNeeded();
     launchTutorial();
   } catch(err) {
     console.error('XquiX Studio Experience failed to initialize:', err);
     showGuestExperienceErrorScreen();
   }
+}
+
+// ===== Welcome Screen =====
+// Purely an extra onboarding step ahead of the tutorial -- inserted
+// between the intro animation finishing and the tutorial actually
+// launching. Doesn't touch buildFirstCoachingSessionSteps, startTutorial,
+// or any validation logic at all: it's just one more await in
+// startGuestExperience's existing sequence, resolving once the coach
+// presses Continue/Skip (or immediately, without ever showing anything,
+// if they've already seen it on this browser).
+const GUEST_WELCOME_SEEN_KEY = 'xquixGuestWelcomeSeenV1';
+
+function detectGuestWelcomeDeviceKind(){
+  const ua = (navigator.userAgent || '');
+  // iPadOS 13+ reports its UA as a Mac, distinguishable only by touch
+  // support -- a real Mac has maxTouchPoints of 0.
+  const isIPadOS13Plus = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+  if(/iPhone|iPad|iPod/.test(ua) || isIPadOS13Plus) return 'ios';
+  if(/Android/.test(ua)) return 'android';
+  return 'desktop';
+}
+
+// Builds the device-specific message/button set into the existing
+// overlay markup rather than three separate overlays, since the
+// structure (title + message + buttons) is identical either way.
+function populateGuestWelcomeScreen(kind){
+  const msg = document.getElementById('guestWelcomeMessage');
+  const skipBtn = document.getElementById('guestWelcomeSkipBtn');
+  if(!msg) return;
+  if(kind === 'ios'){
+    msg.innerHTML = '<p>For the best experience, we recommend adding XquiX Studio to your Home Screen.</p>'
+      + '<p>Tap the Share button (\u25A1\u2191), then select Add to Home Screen.</p>'
+      + '<p>Once installed, tap Continue to begin your first coaching session.</p>';
+    if(skipBtn) skipBtn.style.display = '';
+  } else if(kind === 'android'){
+    msg.innerHTML = '<p>For the best experience, add XquiX Studio to your Home Screen.</p>'
+      + '<p>Use your browser menu and choose Add to Home Screen or Install App.</p>';
+    if(skipBtn) skipBtn.style.display = '';
+  } else {
+    msg.innerHTML = '<p>Your first coaching session takes approximately 2 minutes.</p>'
+      + '<p>Press Continue when you\u2019re ready.</p>';
+    // Desktop gets Continue only -- there's no install step to skip.
+    if(skipBtn) skipBtn.style.display = 'none';
+  }
+}
+
+function showGuestWelcomeScreenIfNeeded(){
+  return new Promise(resolve=>{
+    let alreadySeen = false;
+    try { alreadySeen = localStorage.getItem(GUEST_WELCOME_SEEN_KEY) === '1'; } catch(err){ alreadySeen = false; }
+    if(alreadySeen){ resolve(); return; }
+    populateGuestWelcomeScreen(detectGuestWelcomeDeviceKind());
+    const finish = () => {
+      try { localStorage.setItem(GUEST_WELCOME_SEEN_KEY, '1'); } catch(err){ /* private browsing etc -- shows again next time, harmless */ }
+      hideGuestOverlays();
+      resolve();
+    };
+    document.getElementById('guestWelcomeContinueBtn')?.addEventListener('click', finish, {once:true});
+    document.getElementById('guestWelcomeSkipBtn')?.addEventListener('click', finish, {once:true});
+    showGuestOverlay('guestWelcomeScreen');
+  });
 }
 
 document.getElementById('guestExitContinueBtn')?.addEventListener('click', ()=>{
