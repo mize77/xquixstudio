@@ -32,24 +32,23 @@
   body.presentation #closeHeaderBtn::before { content:'\2715'; font-size:14px; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
   #edgeTabStack { position:fixed; top:50%; right:0; transform:translateY(-50%); z-index:1460; display:flex; flex-direction:column; gap:6px; max-height:94vh; max-height:94dvh; }
   .edgeTab { position:static; writing-mode:vertical-rl; text-orientation:mixed; padding:12px 7px; background:#124d4d; color:#fff; border:none; border-radius:8px 0 0 8px; cursor:pointer; font-weight:700; letter-spacing:.04em; box-shadow:-2px 2px 10px rgba(0,0,0,.2); font-size:13px; flex-shrink:1; }
-  /* Guest Experience Mode: only View, Quicks, and Menu are ever
-     interactive. The other right-edge handles (Presentation, Timeline,
-     Shot Clock, Spotlight, Field Zones, Player Setups, Window) stay
-     VISIBLE -- they don't block the view of the field -- but are
-     non-interactive at all times, both during the guided tutorial and
-     during free play afterward. This is a standing Layer 1 restriction,
-     independent of the tutorial's own step-by-step lock (Layer 2), which
-     is why it's expressed here as pointer-events rather than tied to any
-     particular step. The camera-turn buttons (studioNavLeft/Right,
-     which aren't edgeTab elements) and the Save/Search UI are unrelated
-     to this and stay fully hidden as before. */
+  /* Guest Experience Mode: only View, Quicks, and Menu are ever visible
+     or interactive, both during the guided tutorial and during free
+     play afterward. The other right-edge handles (Presentation,
+     Timeline, Shot Clock, Spotlight, Field Zones, Player Setups, Window)
+     are hidden entirely -- not just non-interactive -- matching the
+     original intent. This is a standing Layer 1 restriction, independent
+     of the tutorial's own step-by-step lock (Layer 2). The camera-turn
+     buttons (studioNavLeft/Right, which aren't edgeTab elements) and the
+     Save/Search UI are unrelated to this and stay fully hidden as
+     before. */
   body.guestExperienceActive #presentationModeHandle,
   body.guestExperienceActive #timelineToggleTab,
   body.guestExperienceActive #shotClockToggleBtn,
   body.guestExperienceActive #spotlightToggleBtn,
   body.guestExperienceActive #fieldZonesToggleBtn,
   body.guestExperienceActive #playerSetupsToggleBtn,
-  body.guestExperienceActive #studioWindowDarkenBtn { pointer-events:none !important; }
+  body.guestExperienceActive #studioWindowDarkenBtn,
   body.guestExperienceActive #studioNavLeft,
   body.guestExperienceActive #studioNavRight,
   body.guestExperienceActive #soMenuSaveFormation,
@@ -59,9 +58,16 @@
      Packages (itself narrowed to just Reset -- New/Save Formation/Save
      Package hidden). Editing and Presentation categories hidden
      entirely. Opening the one available saved item is handled by the
-     separate Save/Open button restrictions above, not this sidebar. */
+     separate Save/Open button restrictions above, not this sidebar.
+     More Tools & Panels (#moreToolsPanel) is a separate <details>
+     element outside all five cmdCategory groups -- Inspector, Layers,
+     Team Manager, Object Engine JSON debug, Version History, and more --
+     none of which is part of the three allowed categories, so the whole
+     section is hidden rather than trying to pick individual items out
+     of it. */
   body.guestExperienceActive .cmdCategory[data-cat="editing"],
   body.guestExperienceActive .cmdCategory[data-cat="present"],
+  body.guestExperienceActive #moreToolsPanel,
   body.guestExperienceActive #newBtn,
   body.guestExperienceActive #saveFormationBtn,
   body.guestExperienceActive #savePackageBtn { display:none !important; }
