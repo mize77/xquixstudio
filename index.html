@@ -32,25 +32,39 @@
   body.presentation #closeHeaderBtn::before { content:'\2715'; font-size:14px; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
   #edgeTabStack { position:fixed; top:50%; right:0; transform:translateY(-50%); z-index:1460; display:flex; flex-direction:column; gap:6px; max-height:94vh; max-height:94dvh; }
   .edgeTab { position:static; writing-mode:vertical-rl; text-orientation:mixed; padding:12px 7px; background:#124d4d; color:#fff; border:none; border-radius:8px 0 0 8px; cursor:pointer; font-weight:700; letter-spacing:.04em; box-shadow:-2px 2px 10px rgba(0,0,0,.2); font-size:13px; flex-shrink:1; }
-  /* Guest Experience Mode: only View, Quicks, and Menu remain visible --
-     every other edge handle (and the camera-turn buttons, which aren't
-     edgeTab elements but are equally unneeded for the tutorial) stays
-     hidden the entire time. Hidden via CSS, not removed from the DOM --
-     the normal Studio is completely unaffected when this class isn't
-     present, and a future enhancement could selectively re-show these
-     later without any structural change. */
+  /* Guest Experience Mode: only View, Quicks, and Menu are ever
+     interactive. The other right-edge handles (Presentation, Timeline,
+     Shot Clock, Spotlight, Field Zones, Player Setups, Window) stay
+     VISIBLE -- they don't block the view of the field -- but are
+     non-interactive at all times, both during the guided tutorial and
+     during free play afterward. This is a standing Layer 1 restriction,
+     independent of the tutorial's own step-by-step lock (Layer 2), which
+     is why it's expressed here as pointer-events rather than tied to any
+     particular step. The camera-turn buttons (studioNavLeft/Right,
+     which aren't edgeTab elements) and the Save/Search UI are unrelated
+     to this and stay fully hidden as before. */
   body.guestExperienceActive #presentationModeHandle,
   body.guestExperienceActive #timelineToggleTab,
   body.guestExperienceActive #shotClockToggleBtn,
   body.guestExperienceActive #spotlightToggleBtn,
   body.guestExperienceActive #fieldZonesToggleBtn,
   body.guestExperienceActive #playerSetupsToggleBtn,
-  body.guestExperienceActive #studioWindowDarkenBtn,
+  body.guestExperienceActive #studioWindowDarkenBtn { pointer-events:none !important; }
   body.guestExperienceActive #studioNavLeft,
   body.guestExperienceActive #studioNavRight,
   body.guestExperienceActive #soMenuSaveFormation,
   body.guestExperienceActive #soMenuSaveSequence,
   body.guestExperienceActive #openItemSearch { display:none !important; }
+  /* Menu restricted to Movement & Ball, Drawing Tools, and Formations &
+     Packages (itself narrowed to just Reset -- New/Save Formation/Save
+     Package hidden). Editing and Presentation categories hidden
+     entirely. Opening the one available saved item is handled by the
+     separate Save/Open button restrictions above, not this sidebar. */
+  body.guestExperienceActive .cmdCategory[data-cat="editing"],
+  body.guestExperienceActive .cmdCategory[data-cat="present"],
+  body.guestExperienceActive #newBtn,
+  body.guestExperienceActive #saveFormationBtn,
+  body.guestExperienceActive #savePackageBtn { display:none !important; }
   #quickCommandBar { position:fixed; top:12px; right:12px; z-index:70; background:rgba(255,255,255,.96); border:1px solid #c3d2d2; border-radius:10px; box-shadow:0 6px 20px rgba(0,0,0,.2); display:flex; align-items:center; gap:4px; padding:6px 8px; }
   #quickCommandBar { z-index:1520; top:12px; left:50%; right:auto; transform:translateX(-50%); }
   #quickCommandBarHandle { cursor:grab; padding:6px 8px; margin:-6px 2px -6px -8px; background:#124d4d; color:#fff; border-radius:8px 0 0 8px; touch-action:none; display:flex; align-items:center; justify-content:center; align-self:stretch; }
@@ -282,7 +296,7 @@
   body.tutorialLockActive .tutorialAllowed * { pointer-events: auto; }
   #tutorialExitBtn { pointer-events: auto !important; }
   #tutorialAcknowledgeBtn { pointer-events: auto !important; }
-  body.tutorialModeActive #tutorialExitBtn { display:block; }
+  body.tutorialModeActive #tutorialExitBtn, body.guestFreePlayActive #tutorialExitBtn { display:block; }
   .ghost img { display:block; }
   #measureText { font-size:.45px; font-weight:800; fill:#263238; paint-order:stroke; stroke:white; stroke-width:.12; pointer-events:none; }
   .rotateHandle { position:absolute; left:50%; top:-8px; width:16px; height:16px; border-radius:50%; background:rgba(255,255,255,.85); border:1.5px solid #263238; box-shadow:0 1px 3px rgba(0,0,0,.35); transform:translate(-50%,-50%); cursor:grab; z-index:9; touch-action:none; opacity:0; transition:opacity .12s; }
@@ -1329,7 +1343,7 @@
 </div>
 <div id="guestErrorScreen" class="guestOverlay">
   <div class="guestOverlayBox">
-    <h2>The Guest Experience could not be prepared.</h2>
+    <h2>The XquiX Studio Experience could not be prepared.</h2>
     <p>Please reload the page.</p>
     <p>If the problem continues, contact the person who shared this experience.</p>
     <div class="guestOverlayButtons">
@@ -5018,6 +5032,12 @@ function startTutorial(steps, { onComplete } = {}){
   // to a known clean state every time, not just the first time.
   if(typeof setMode==='function') setMode('select');
   if(typeof clearArrows==='function') clearArrows(true);
+  // Same reasoning as the state resets above -- a second run must not
+  // inherit whatever view mode the previous run left active. Front Court
+  // Zoomed is turned on mid-tutorial (Step 6) and never turned back off
+  // by the tutorial itself, so without this a replay would silently
+  // start from the zoomed view instead of the intended full-court default.
+  if(typeof toggleFrontCourt==='function'){ frontCourtZoomed=false; toggleFrontCourt(false); if(typeof updateViewOptionCards==='function') updateViewOptionCards(); }
   // The field should read as a blank slate the moment the tutorial opens,
   // not whatever formation was left over from the coach's last real
   // session -- Step 1 has the person load the tutorial's own intro
@@ -5323,8 +5343,24 @@ function clearTutorialInteractionLock(){
 // holes and the arrows are computed per-target now, not as one combined
 // region, so a two-target step gets two small spotlights and two arrow
 // pairs rather than one big area picking an arbitrary shared center.
-function tutorialTargetCircle(el){
+// If this target is a player with an active tutorial ghost showing where
+// it needs to move to, the enclosed rect grows to cover both the live
+// player and the ghost together -- otherwise the ghost (deliberately
+// placed outside the player's own footprint) ends up peeking out from
+// under the circle's edge instead of being visibly enclosed along with
+// the player it belongs to.
+function tutorialRectWithGhost(el){
   const r = el.getBoundingClientRect();
+  if(!el.classList || !el.classList.contains('player')) return r;
+  const ghostEl = document.querySelector('#tutorialGhostLayer .tutorialGhostTarget');
+  if(!ghostEl) return r;
+  const g = ghostEl.getBoundingClientRect();
+  const left = Math.min(r.left, g.left), top = Math.min(r.top, g.top);
+  const right = Math.max(r.right, g.right), bottom = Math.max(r.bottom, g.bottom);
+  return { left, top, right, bottom, width: right-left, height: bottom-top };
+}
+function tutorialTargetCircle(el){
+  const r = tutorialRectWithGhost(el);
   const cx = r.left + r.width/2, cy = r.top + r.height/2;
   const radius = Math.max(36, Math.sqrt(r.width*r.width + r.height*r.height)/2 + 14);
   return { cx, cy, r:radius };
@@ -5536,7 +5572,7 @@ function positionTutorialSpotlight(target){
       _tutorialRingLast[i] = null;
       continue;
     }
-    const r = el.getBoundingClientRect();
+    const r = tutorialRectWithGhost(el);
     const cx = r.left + r.width/2, cy = r.top + r.height/2;
     const radius = Math.max(30, Math.sqrt(r.width*r.width + r.height*r.height)/2 + 12);
     overlay.classList.add('show');
@@ -5959,6 +5995,7 @@ function buildFirstCoachingSessionSteps(){
     return { team:refTeam, pose:refPose, rot:refRot, x:refX, y:targetCenterY-armOffsetY, label:'B6' };
   }
   let defenderGhostTarget = null;
+  let defenderStartPos = null; // captured at Step 14's onEnter -- see the validate function there for why this is needed
   // Direct geometric check (mirrors computeShotBlockCorridor() and
   // renderShootingAngle() exactly) for "would this exact defender
   // position/rotation produce a corridor fully inside the shooting
@@ -6119,7 +6156,7 @@ function buildFirstCoachingSessionSteps(){
       // gesture works for a mouse (click and drag) and touch (swipe),
       // which is also why the instruction can describe both at once
       // rather than needing separate mouse/touch guidance.
-      instruction: 'Try it: click-drag (or swipe) near the left/right edge of the screen to scroll up/down and see more of the field.',
+      instruction: 'Try it: click-drag (or swipe) near the left/right edge of the screen to scroll up/down and see more of the field. Make sure your device is in landscape mode.',
       onEnter(){ scrollStartTop = document.getElementById('stageWrap')?.scrollTop ?? 0; },
       highlight: ['#fcScrollZoneLeft', '#fcScrollZoneRight'],
       useScrollHint: true, // red-shaded strip + animated two-finger icon in place of the usual ring, which looked oversized and mismatched against this tall, narrow target
@@ -6195,11 +6232,27 @@ function buildFirstCoachingSessionSteps(){
     },
     { // Step 14 (ref: T08, Y adjusted -- see computeDefenderGhostTarget above) -- drag the already-selected defender into place
       instruction: isTouchDevice ? 'Grey shade = target, inside the attacker\u2019s shooting angle. Use the highlighted Direction Pad to move the defender there. Keep it selected after.' : 'Grey shade = target, inside the attacker\u2019s shooting angle. Drag the defender there. Keep it selected after.',
-      onEnter(){ defenderGhostTarget = b6_T08 ? computeDefenderGhostTarget(b6_T08.x, b6_T08.rot, b6_T08.team, b6_T08.pose, 'left') : null; this.ghost = defenderGhostTarget ? { type:'playerPosition', targetPlayer:defenderGhostTarget } : null; },
+      onEnter(){
+        defenderGhostTarget = b6_T08 ? computeDefenderGhostTarget(b6_T08.x, b6_T08.rot, b6_T08.team, b6_T08.pose, 'left') : null;
+        this.ghost = defenderGhostTarget ? { type:'playerPosition', targetPlayer:defenderGhostTarget } : null;
+        const b6start = document.querySelector('.player[data-label="B6"]');
+        defenderStartPos = b6start ? { x:+b6start.dataset.x, y:+b6start.dataset.y } : null;
+      },
       highlight: isTouchDevice ? ['.player[data-label="B6"]', '#directionPad'] : '.player[data-label="B6"]',
       validate: { type:'custom', fn: ()=>{
         const b6 = document.querySelector('.player[data-label="B6"]');
         if(!b6 || !defenderGhostTarget) return false;
+        // Requires actual movement during this step -- the defender's
+        // inherited starting position (wherever the intro sequence's last
+        // frame left it) can already sit close enough to the target to
+        // pass the checks below on its own, which would let the checkmark
+        // fire without the coach doing anything. 0.15m is comfortably
+        // more than positional noise but well under a single D-pad nudge
+        // or drag, so it doesn't get in the way of a real move.
+        if(defenderStartPos){
+          const moved = Math.hypot(+b6.dataset.x-defenderStartPos.x, +b6.dataset.y-defenderStartPos.y);
+          if(moved < 0.15) return false;
+        }
         // Generous sanity check (right general area) -- the real gate is
         // the direct corridor-containment check just below, which the
         // proximity check alone can't reliably guarantee (see
@@ -6461,8 +6514,26 @@ function prepareGuestInterface(){
 // Ends the current guest session in a way that can never reveal the
 // full Studio -- exits whatever tutorial state exists, then shows a
 // dedicated closing screen instead of the normal Studio underneath.
-function endGuestSessionWithScreen(){
+// fromNaturalCompletion is true only when the tutorial finished on its
+// own (not an early exit via the confirmation dialog, which can happen
+// at any point and may not have the outro loaded at all).
+function endGuestSessionWithScreen(fromNaturalCompletion){
+  if(fromNaturalCompletion){
+    // "The setup before the final sequence started" -- frame 0 of the
+    // outro/continuation sequence is exactly the freshly-taught,
+    // just-Reset setup the coach was looking at right before pressing
+    // Play, before the scripted playback moved everything to wherever
+    // its last frame ends up. Rewinding here is what makes the later
+    // free-play phase start from that clean, fully-set-up board instead
+    // of the outro's finishing positions.
+    try {
+      currentFrame = 0;
+      if(typeof loadFrame==='function') loadFrame(0);
+      if(typeof renderFrames==='function') renderFrames();
+    } catch(err){ console.error('Could not rewind to the outro\u2019s starting frame:', err); }
+  }
   if(typeof exitTutorial === 'function') exitTutorial();
+  document.body.classList.remove('guestFreePlayActive');
   hideGuestOverlays();
   showGuestOverlay('guestCompletionScreen');
 }
@@ -6477,22 +6548,33 @@ function showGuestExperienceErrorScreen(){
 // Guest-Experience-specific piece is what happens on completion: instead
 // of a simple congratulatory alert (the normal Studio's behavior, see
 // the dev-preview button above), the Studio stays locked behind a
-// dedicated completion screen.
+// dedicated completion screen, which then leads into free play.
 function launchTutorial(){
+  document.body.classList.remove('guestFreePlayActive');
   startTutorial(buildFirstCoachingSessionSteps(), {
-    onComplete: endGuestSessionWithScreen
+    onComplete: ()=>endGuestSessionWithScreen(true)
   });
+}
+
+// Lets the coach use the Experience for their own exploration after
+// finishing it -- Layer 1 (edge-handle and Menu restrictions) stays
+// exactly as it was throughout the tutorial; this only removes the
+// completion overlay and keeps Exit Experience reachable so they can
+// still restart or leave from here.
+function enterGuestFreePlay(){
+  hideGuestOverlays();
+  document.body.classList.add('guestFreePlayActive');
 }
 
 async function startGuestExperience(){
   try {
     await waitForStudioInitialization();
     await waitForIntroAnimation();
-    if(!verifyTutorialAssets()) throw new Error('Guest Experience: required tutorial assets are missing.');
+    if(!verifyTutorialAssets()) throw new Error('XquiX Studio Experience: required tutorial assets are missing.');
     prepareGuestInterface();
     launchTutorial();
   } catch(err) {
-    console.error('Guest Experience failed to initialize:', err);
+    console.error('XquiX Studio Experience failed to initialize:', err);
     showGuestExperienceErrorScreen();
   }
 }
@@ -6502,23 +6584,17 @@ document.getElementById('guestExitContinueBtn')?.addEventListener('click', ()=>{
 });
 document.getElementById('guestExitRestartBtn')?.addEventListener('click', ()=>{
   hideGuestOverlays();
-  if(typeof exitTutorial === 'function') exitTutorial();
   launchTutorial();
 });
 document.getElementById('guestExitConfirmBtn')?.addEventListener('click', ()=>{
-  endGuestSessionWithScreen();
+  endGuestSessionWithScreen(false);
 });
 document.getElementById('guestReplayBtn')?.addEventListener('click', ()=>{
   hideGuestOverlays();
   launchTutorial();
 });
 document.getElementById('guestCloseBtn')?.addEventListener('click', ()=>{
-  // Never falls back to the normal Studio -- closing just leaves the
-  // completion screen as the final state; there is nothing behind it to
-  // reveal from here regardless of what the user does next (close the
-  // tab, navigate away, etc).
-  hideGuestOverlays();
-  showGuestOverlay('guestCompletionScreen');
+  enterGuestFreePlay();
 });
 document.getElementById('guestReloadBtn')?.addEventListener('click', ()=>{
   window.location.reload();
