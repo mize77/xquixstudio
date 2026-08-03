@@ -302,7 +302,19 @@
   body.tutorialLockActive .tutorialAllowed * { pointer-events: auto; }
   #tutorialExitBtn { pointer-events: auto !important; }
   #tutorialAcknowledgeBtn { pointer-events: auto !important; }
-  #tutorialInstruction { pointer-events: auto !important; }
+  #tutorialInstruction { pointer-events: auto !important; user-select: none; -webkit-user-select: none; }
+  #guestWelcomeScreen h1 { user-select: none; -webkit-user-select: none; }
+  /* Every guest overlay (Exit confirmation, completion, error, welcome,
+     A2HS guide) and everything inside it stays clickable no matter what
+     -- the Exit confirmation specifically is shown WHILE the tutorial's
+     interaction lock is still active (the coach taps Exit mid-step), and
+     without this exemption its own three buttons inherited the lock's
+     blanket "block everything" rule just like any other unlisted
+     element, making the dialog impossible to dismiss in a real browser
+     even though it displayed correctly. This is exactly the class of
+     escape-hatch UI that must never be blockable, so it gets the same
+     unconditional !important treatment as Exit Tutorial itself. */
+  .guestOverlay, .guestOverlay * { pointer-events: auto !important; }
   body.tutorialModeActive #tutorialExitBtn, body.guestFreePlayActive #tutorialExitBtn { display:block; }
   .ghost img { display:block; }
   #measureText { font-size:.45px; font-weight:800; fill:#263238; paint-order:stroke; stroke:white; stroke-width:.12; pointer-events:none; }
@@ -5097,6 +5109,13 @@ function startTutorial(steps, { onComplete } = {}){
   if(typeof shootingAngleActive!=='undefined'){ shootingAngleActive=false; if(typeof _shootingAngleUI!=='undefined') _shootingAngleUI.render(); }
   if(typeof shotBlockActive!=='undefined'){ shotBlockActive=false; if(typeof _shotBlockUI!=='undefined') _shotBlockUI.render(); }
   if(typeof smartPositioningActive!=='undefined'){ smartPositioningActive=false; if(typeof _smartPositioningUI!=='undefined') _smartPositioningUI.render(); }
+  // Both of these are cloned into the Quick Command Bar (see
+  // QUICKBAR_PRESETS) regardless of their own edge tab being hidden in
+  // Guest Experience Mode, so either can be turned on during free play --
+  // without resetting them here too, they'd silently carry over into the
+  // next tutorial run instead of starting from a clean slate.
+  if(typeof goalieVisionActive!=='undefined'){ goalieVisionActive=false; if(typeof _goalieVisionUI!=='undefined') _goalieVisionUI.render(); }
+  if(typeof MIZE!=='undefined' && MIZE.State && MIZE.State.fieldZones && MIZE.State.fieldZones.active!=='none' && typeof selectFieldZoneSet==='function'){ selectFieldZoneSet('none'); }
   if(typeof ghostMode!=='undefined' && typeof clearGhosts==='function'){ ghostMode=false; clearGhosts(); }
   if(typeof renderShotBlockCorridors==='function') renderShotBlockCorridors();
   // The Quick Command Bar's buttons are clones rebuilt from the real
@@ -7155,7 +7174,7 @@ let _autoplayTapCount = 0, _autoplayTapTimer = null;
 document.querySelector('#guestWelcomeScreen h1')?.addEventListener('click', ()=>{
   _autoplayTapCount++;
   clearTimeout(_autoplayTapTimer);
-  _autoplayTapTimer = setTimeout(()=>{ _autoplayTapCount=0; }, 3000);
+  _autoplayTapTimer = setTimeout(()=>{ _autoplayTapCount=0; }, 6000);
   if(_autoplayTapCount>=7){
     _autoplayTapCount=0; clearTimeout(_autoplayTapTimer);
     hideGuestOverlays();
@@ -7178,7 +7197,7 @@ document.getElementById('tutorialInstruction')?.addEventListener('click', ()=>{
   if(document.getElementById('tutorialStepCount')?.textContent !== 'Welcome') return;
   _autoplayTapCount++;
   clearTimeout(_autoplayTapTimer);
-  _autoplayTapTimer = setTimeout(()=>{ _autoplayTapCount=0; }, 3000);
+  _autoplayTapTimer = setTimeout(()=>{ _autoplayTapCount=0; }, 6000);
   if(_autoplayTapCount>=7){
     _autoplayTapCount=0; clearTimeout(_autoplayTapTimer);
     runAutoplayDemo(); // already at the tutorial's first step -- no need to relaunch, just start driving from here
