@@ -6689,7 +6689,8 @@ function populateA2HSGuideMessage(kind){
   if(!msg) return;
   if(kind === 'ios'){
     const where = isGuestWelcomeTablet() ? 'near the top of your screen' : 'in your browser\u2019s toolbar';
-    msg.innerHTML = '<p>Tap the highlighted Share button (\u25A1\u2191) '+where+', then choose \u2018Add to Home Screen\u2019.</p>'
+    msg.innerHTML = '<p>If you see a \u2018\u2022\u2022\u2022\u2019 (more) icon in your toolbar, tap it first.</p>'
+      + '<p>Then tap the highlighted Share button (\u25A1\u2191) '+where+', then choose \u2018Add to Home Screen\u2019.</p>'
       + '<p>Once installed, tap Continue below to begin your first coaching session.</p>';
   } else {
     msg.innerHTML = '<p>Tap the highlighted menu icon near the top of your screen, then choose \u2018Add to Home Screen\u2019 or \u2018Install App\u2019.</p>'
@@ -6740,8 +6741,25 @@ function showAddToHomeScreenGuide(kind, onFinish){
   }, {once:true});
 }
 
+// True once the page is actually running as an installed app (launched
+// from a home-screen icon), not just in a regular browser tab --
+// window.navigator.standalone is the iOS Safari signal, the
+// display-mode media query is the standards-based one Android/Chrome
+// and other platforms use. Checked ahead of (and independent from) the
+// localStorage flag below: it's read directly from how the page is
+// currently running rather than relying on persisted state, so it
+// covers the flag never having been set for whatever reason too.
+function isGuestExperienceInstalled(){
+  try {
+    if(window.navigator.standalone === true) return true;
+    if(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) return true;
+  } catch(err){ /* ignore, treat as not installed */ }
+  return false;
+}
+
 function showGuestWelcomeScreenIfNeeded(){
   return new Promise(resolve=>{
+    if(isGuestExperienceInstalled()){ resolve(); return; } // already installed -- nothing left to recommend
     let alreadySeen = false;
     try { alreadySeen = localStorage.getItem(GUEST_WELCOME_SEEN_KEY) === '1'; } catch(err){ alreadySeen = false; }
     if(alreadySeen){ resolve(); return; }
