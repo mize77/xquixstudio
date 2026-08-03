@@ -315,6 +315,7 @@
      escape-hatch UI that must never be blockable, so it gets the same
      unconditional !important treatment as Exit Tutorial itself. */
   .guestOverlay, .guestOverlay * { pointer-events: auto !important; }
+  .closeToolPanelBtn, #toolPanelBackdrop { pointer-events: auto !important; }
   body.tutorialModeActive #tutorialExitBtn, body.guestFreePlayActive #tutorialExitBtn { display:block; }
   .ghost img { display:block; }
   #measureText { font-size:.45px; font-weight:800; fill:#263238; paint-order:stroke; stroke:white; stroke-width:.12; pointer-events:none; }
@@ -3195,6 +3196,7 @@ function attachLongPress(el, getTarget) {
     const t=e.touches[0]; sx=t.clientX; sy=t.clientY;
     clearTimeout(timer);
     timer=setTimeout(()=>{
+      if(typeof tutorialModeActive!=='undefined' && tutorialModeActive) return;
       const target=getTarget();
       if(!target || target.dataset?.locked==='true') return;
       moved=true; dragging=null; rotating=null;
@@ -3289,6 +3291,7 @@ function makePlayer([label,team,x,y,pose,rot]) {
   el.addEventListener('dblclick', e=>{
     if(layerState.lockPlayers || el.dataset.locked==='true') return;
     if(e.target.classList.contains('rotateHandle')) return;
+    if(typeof tutorialModeActive!=='undefined' && tutorialModeActive) return;
     clearSelection(); setSelected(el, true);
     openToolPanel('inspectorPanel');
     e.preventDefault(); e.stopPropagation();
