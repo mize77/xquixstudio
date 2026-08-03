@@ -750,6 +750,18 @@
   <path d="M27 52 L43 67 L75 32" stroke="#fff" stroke-width="9" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
 <button id="tutorialExitBtn" title="Leave the guided tutorial at any time">Exit Tutorial</button>
+<div id="tutorialOrientationWarning" class="guestOverlay">
+  <div class="guestOverlayBox">
+    <svg viewBox="0 0 24 24" width="48" height="48" fill="#d92b2b" style="margin-bottom:6px;"><path d="M12 2 L23 21 L1 21 Z"/><rect x="10.8" y="8" width="2.4" height="7" fill="#fff"/><rect x="10.8" y="16.5" width="2.4" height="2.4" fill="#fff"/></svg>
+    <h2>Previous Step Not Completed</h2>
+    <p>It looks like your device is still in portrait mode -- the last step asked you to rotate to landscape first.</p>
+    <p>Do you want to rotate now, or continue in portrait anyway?</p>
+    <div class="guestOverlayButtons">
+      <button type="button" id="tutorialOrientationRotateBtn">Rotate &amp; Try Again</button>
+      <button type="button" id="tutorialOrientationContinueBtn">Continue in Portrait</button>
+    </div>
+  </div>
+</div>
 <div id="spotlightHitArea"></div>
 <div id="spotlightResizeHandle"></div>
 <button id="spotlightRemoveBtn" title="Remove spotlight">&#10005;</button>
@@ -3259,6 +3271,10 @@ function makePlayer([label,team,x,y,pose,rot]) {
     if(!selected.has(el)){
       clearSelection(); setSelected(el,true);
     } else {
+      if(typeof tutorialModeActive!=='undefined' && tutorialModeActive){
+        const _step = typeof tutorialSteps!=='undefined' ? tutorialSteps[tutorialStepIndex] : null;
+        if(!_step || !_step.allowsPoseToggle) return;
+      }
       recordHistory();
       const wasCarrier = ballCarrier===el;
       el.classList.add('poseTransitioning');
@@ -4574,6 +4590,13 @@ function ballToHand(hand){
 }
 document.getElementById('ballLeftBtn').onclick=()=>ballToHand('left');
 document.getElementById('ballRightBtn').onclick=()=>ballToHand('right');
+(function(){
+  const leftIcon = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:4px;"><circle cx="15" cy="12" r="4.5"/><path d="M9 12H2M6 8l-4 4 4 4"/></svg>';
+  const rightIcon = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:4px;"><circle cx="9" cy="12" r="4.5"/><path d="M15 12h7M18 8l4 4-4 4"/></svg>';
+  const lBtn = document.getElementById('ballLeftBtn'), rBtn = document.getElementById('ballRightBtn');
+  if(lBtn) lBtn.innerHTML = leftIcon + lBtn.textContent;
+  if(rBtn) rBtn.innerHTML = rightIcon + rBtn.textContent;
+})();
 document.getElementById('deleteSelectedBtn').onclick=()=>deleteSelectedObject();
 document.getElementById('copySelectedBtn').onclick=()=>copySelected();
 document.getElementById('pasteSelectedBtn').onclick=()=>pasteClipboard();
@@ -5134,6 +5157,8 @@ function startTutorial(steps, { onComplete } = {}){
   // next tutorial run instead of starting from a clean slate.
   if(typeof goalieVisionActive!=='undefined'){ goalieVisionActive=false; if(typeof _goalieVisionUI!=='undefined') _goalieVisionUI.render(); }
   if(typeof smartGoaliePositioningActive!=='undefined'){ smartGoaliePositioningActive=false; if(typeof updateSmartGoaliePositioningButton==='function') updateSmartGoaliePositioningButton(); }
+  if(typeof tutorialContinueInPortrait!=='undefined') tutorialContinueInPortrait=false;
+  if(typeof hideTutorialOrientationWarning==='function') hideTutorialOrientationWarning();
   if(typeof MIZE!=='undefined' && MIZE.State && MIZE.State.fieldZones && MIZE.State.fieldZones.active!=='none' && typeof selectFieldZoneSet==='function'){ selectFieldZoneSet('none'); }
   if(typeof ghostMode!=='undefined' && typeof clearGhosts==='function'){ ghostMode=false; clearGhosts(); }
   if(typeof renderShotBlockCorridors==='function') renderShotBlockCorridors();
@@ -5184,6 +5209,37 @@ document.getElementById('tutorialExitBtn')?.addEventListener('click', exitTutori
 let tutorialSpotlightPhase = 'dim'; // 'dim' (brief orientation flash) then 'ring' (the rest of the step)
 let tutorialPhaseTimer = null;
 let tutorialManualAck = false;
+// Testers were rushing past the landscape pre-step without actually
+// rotating their device, then getting stuck on the scroll-gesture step
+// (or missing the point of it, since the full field's already visible in
+// portrait) with no indication of why. This is a general "did the
+// previous step's real-world instruction actually happen" pattern --
+// currently applied to orientation specifically, since that's the
+// concrete case reported, but built as its own reusable check/overlay
+// rather than landscape-specific logic buried in one step's validate.
+function tutorialIsLandscape(){
+  try {
+    if(window.matchMedia) return window.matchMedia('(orientation: landscape)').matches;
+  } catch(err){ /* fall through to the size-based check below */ }
+  return window.innerWidth > window.innerHeight;
+}
+let tutorialContinueInPortrait = false; // set once the coach explicitly confirms continuing despite the warning -- read by the scroll-gesture step to skip itself, since scrolling won't demonstrate anything useful when the full field's already visible
+function showTutorialOrientationWarning(){
+  document.getElementById('tutorialOrientationWarning')?.classList.add('open');
+}
+function hideTutorialOrientationWarning(){
+  document.getElementById('tutorialOrientationWarning')?.classList.remove('open');
+}
+document.getElementById('tutorialOrientationRotateBtn')?.addEventListener('click', ()=>{
+  hideTutorialOrientationWarning();
+  // Nothing else to do -- the coach taps "Got it" again once actually
+  // rotated, which re-runs the same check in the step's validate below.
+});
+document.getElementById('tutorialOrientationContinueBtn')?.addEventListener('click', ()=>{
+  tutorialContinueInPortrait = true;
+  tutorialManualAck = true;
+  hideTutorialOrientationWarning();
+});
 function goToTutorialStep(index){
   tutorialAdvancing = false;
   tutorialManualAck = false;
@@ -6161,7 +6217,13 @@ function buildFirstCoachingSessionSteps(){
       instruction: 'For the best view, hold your device in landscape (sideways) -- this shows the field more clearly.\n\nTap "Got it" to continue.',
       bannerSide: 'left',
       highlight: '#tutorialAcknowledgeBtn',
-      validate: { type:'custom', fn: ()=> tutorialManualAck }
+      validate: { type:'custom', fn: ()=>{
+        if(!tutorialManualAck) return false;
+        if(tutorialContinueInPortrait || tutorialIsLandscape()) return true;
+        showTutorialOrientationWarning();
+        tutorialManualAck = false;
+        return false;
+      }}
     }] : []),
     { // Step 1 -- tap the button that opens the Save/Open menu
       instruction: 'Tap the highlighted Save/Open button (top-right corner, the \u{1F4BE} icon).',
@@ -6243,7 +6305,12 @@ function buildFirstCoachingSessionSteps(){
       // which is also why the instruction can describe both at once
       // rather than needing separate mouse/touch guidance.
       instruction: 'Try it: click-drag (or swipe) near the left/right edge of the screen to scroll up/down and see more of the field. Make sure your device is in landscape mode.',
-      onEnter(){ scrollStartTop = document.getElementById('stageWrap')?.scrollTop ?? 0; },
+      onEnter(){
+        scrollStartTop = document.getElementById('stageWrap')?.scrollTop ?? 0;
+        if(tutorialContinueInPortrait){
+          setTimeout(()=>{ if(tutorialModeActive) goToTutorialStep(tutorialStepIndex+1); }, 0);
+        }
+      },
       highlight: ['#fcScrollZoneLeft', '#fcScrollZoneRight'],
       useScrollHint: true, // red-shaded strip + animated two-finger icon in place of the usual ring, which looked oversized and mismatched against this tall, narrow target
       successMessage: 'That\u2019s the scroll gesture -- available any time Front Court view is active.',
@@ -6375,11 +6442,13 @@ function buildFirstCoachingSessionSteps(){
       instruction: 'Tap the highlighted defender once (not a drag) to switch to a horizontal (swimming) position.',
       successMessage: 'The corridor is only available while the defender is vertical, so it drops away here -- that\u2019s expected.',
       highlight: '.player[data-label="B6"]',
+      allowsPoseToggle: true,
       validate: withPositionGuards({ type:'playerPose', label:'B6', pose:'h' }, w1GuardAfterStable)
     },
     { // Step 17 (ref: T10)
       instruction: 'Tap the highlighted defender once more (a single tap) to switch the defender back to a vertical position.',
       highlight: '.player[data-label="B6"]',
+      allowsPoseToggle: true,
       validate: withPositionGuards({ type:'playerPose', label:'B6', pose:'v' }, w1GuardAfterStable)
     },
     { // Step 18 -- turn on Free Draw
