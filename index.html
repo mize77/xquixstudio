@@ -302,6 +302,7 @@
   body.tutorialLockActive .tutorialAllowed * { pointer-events: auto; }
   #tutorialExitBtn { pointer-events: auto !important; }
   #tutorialAcknowledgeBtn { pointer-events: auto !important; }
+  #tutorialInstruction { pointer-events: auto !important; }
   body.tutorialModeActive #tutorialExitBtn, body.guestFreePlayActive #tutorialExitBtn { display:block; }
   .ghost img { display:block; }
   #measureText { font-size:.45px; font-weight:800; fill:#263238; paint-order:stroke; stroke:white; stroke-width:.12; pointer-events:none; }
@@ -645,6 +646,15 @@
      the real tutorial. */
   .guestOverlay.guestOverlayTransparentBg { background:transparent; }
   #guestA2HSTarget { position:fixed; width:44px; height:44px; pointer-events:none; opacity:0; }
+  /* Autoplay demo hand cursor -- moves between targets via a plain CSS
+     transition on left/top (duration set per-move in JS, since some
+     moves like a full drag across the field should look slower/more
+     deliberate than a quick tap), with a brief scale-pulse on "tap".
+     Hidden by default; only shown while the autoplay loop is running. */
+  #guestAutoplayHand { position:fixed; z-index:6000; font-size:42px; line-height:1; pointer-events:none; display:none; transform:translate(-8px,-6px); transition:left .65s cubic-bezier(.4,0,.2,1), top .65s cubic-bezier(.4,0,.2,1); filter:drop-shadow(0 3px 7px rgba(0,0,0,.45)); }
+  body.guestAutoplayActive #guestAutoplayHand.show { display:block; }
+  #guestAutoplayHand.tapping { animation:guestAutoplayTap .24s ease; }
+  @keyframes guestAutoplayTap { 0%{transform:translate(-8px,-6px) scale(1);} 50%{transform:translate(-8px,-6px) scale(.8);} 100%{transform:translate(-8px,-6px) scale(1);} }
   .cmdCatHeader { width:100%; display:flex; align-items:center; justify-content:space-between; text-align:left; background:#fff; border:0; border-radius:9px; padding:8px 10px; font-size:12.5px; }
   .cmdCatHeader .chev { transition:transform .15s; color:#8a9494; font-size:11px; }
   .cmdCategory.open .cmdCatHeader .chev { transform:rotate(90deg); }
@@ -1359,6 +1369,7 @@
   </div>
 </div>
 <div id="guestA2HSTarget"></div>
+<div id="guestAutoplayHand" aria-hidden="true">&#x1F446;</div>
 <div id="guestCompletionScreen" class="guestOverlay">
   <div class="guestOverlayBox">
     <h1>Congratulations!</h1>
@@ -6781,6 +6792,398 @@ function showGuestWelcomeScreenIfNeeded(){
     showGuestOverlay('guestWelcomeScreen');
   });
 }
+
+// ===== Autoplay Demo =====
+// Runs the entire guided tutorial on its own -- for recording a
+// screen-capture video. Deliberately does NOT drive step transitions
+// itself: it performs the same underlying action a real tap/drag would
+// (a real click dispatch, or the same dataset+place() update dragging
+// produces), then waits for the tutorial's own existing poll loop
+// (tutorialTrackLoop) to detect success and advance, exactly as it does
+// for a human. The only genuinely new surface here is the visible hand
+// cursor and the per-step script deciding what to do next -- none of
+// buildFirstCoachingSessionSteps' validation or highlight logic is
+// touched or duplicated.
+function autoplayWait(ms){ return new Promise(r=>setTimeout(r, ms)); }
+
+function autoplayHandEl(){ return document.getElementById('guestAutoplayHand'); }
+
+function autoplaySetHandPosition(x, y, durationMs){
+  const hand = autoplayHandEl();
+  if(!hand) return;
+  hand.style.transitionDuration = (durationMs||650)+'ms';
+  hand.classList.add('show');
+  hand.style.left = x+'px';
+  hand.style.top = y+'px';
+}
+
+function autoplayPointFor(el){
+  const r = el.getBoundingClientRect();
+  return { x:r.left+r.width/2, y:r.top+r.height/2 };
+}
+
+// Resolves the same way the ring/dim-overlay already do (supports a
+// selector string, an array, a function, or a direct Element) -- reused
+// rather than re-implemented so the hand always points at exactly what
+// the ring would circle.
+async function autoplayMoveHandToTarget(target, durationMs){
+  const els = resolveTutorialHighlightTargets(target);
+  const el = els[0];
+  if(!el) return null;
+  const p = autoplayPointFor(el);
+  autoplaySetHandPosition(p.x, p.y, durationMs);
+  await autoplayWait((durationMs||650)+40);
+  return el;
+}
+
+async function autoplayTapPulse(){
+  const hand = autoplayHandEl();
+  if(!hand) return;
+  hand.classList.remove('tapping');
+  void hand.offsetWidth; // force a reflow so the pulse animation restarts cleanly every time, not just the first
+  hand.classList.add('tapping');
+  await autoplayWait(260);
+}
+
+// The common case: move the hand to a target, tap it, dispatch a real
+// click. Covers the great majority of steps (menu items, QCB toggles,
+// Play, Reset) without any step-specific code.
+async function autoplayClickTarget(target, opts={}){
+  await autoplayWait(opts.pauseBefore ?? 550);
+  const el = await autoplayMoveHandToTarget(target, opts.moveMs ?? 650);
+  if(!el) return false;
+  await autoplayTapPulse();
+  el.dispatchEvent(new MouseEvent('click', {bubbles:true, cancelable:true}));
+  await autoplayWait(opts.pauseAfter ?? 550);
+  return true;
+}
+
+function autoplayQCBButton(titlePrefix){
+  return [...document.querySelectorAll('#quickCommandBarInner button')].find(b=>b.title && b.title.startsWith(titlePrefix)) || null;
+}
+
+function autoplayGhostTarget(){
+  // The current step's own ghost config (set by its onEnter, exactly as
+  // the tutorial's own ghost overlay reads it) -- read dynamically rather
+  // than hardcoded, so this stays correct even if the underlying
+  // reference formations/sequences are ever revised.
+  const step = tutorialSteps[tutorialStepIndex];
+  return step && step.ghost && step.ghost.targetPlayer ? step.ghost.targetPlayer : null;
+}
+
+async function autoplaySelectPlayer(label){
+  await autoplayWait(550);
+  const el = document.querySelector('.player[data-label="'+label+'"]');
+  if(!el) return false;
+  await autoplayMoveHandToTarget(el, 650);
+  await autoplayTapPulse();
+  if(typeof clearSelection==='function') clearSelection();
+  if(typeof setSelected==='function') setSelected(el, true);
+  await autoplayWait(550);
+  return true;
+}
+
+// Drags a player to wherever this step's own ghost says it should end
+// up -- the ghost's on-screen position IS the drop point, so the hand's
+// destination and the actual target position never disagree.
+async function autoplayDragPlayerToGhost(label, opts={}){
+  await autoplayWait(500);
+  const el = document.querySelector('.player[data-label="'+label+'"]');
+  const target = autoplayGhostTarget();
+  if(!el || !target) return false;
+  await autoplayMoveHandToTarget(el, 500);
+  await autoplayWait(150);
+  const ghostEl = document.querySelector('#tutorialGhostLayer .tutorialGhostTarget');
+  if(ghostEl){
+    const p = autoplayPointFor(ghostEl);
+    autoplaySetHandPosition(p.x, p.y, opts.dragMs ?? 950);
+    await autoplayWait((opts.dragMs ?? 950)+60);
+  }
+  el.dataset.x = String(target.x);
+  el.dataset.y = String(target.y);
+  if(typeof target.rot === 'number') el.dataset.rot = String(target.rot);
+  if(typeof place==='function') place(el);
+  await autoplayWait(600);
+  return true;
+}
+
+async function autoplayRotatePlayerToGhost(label, opts={}){
+  await autoplayWait(500);
+  const el = document.querySelector('.player[data-label="'+label+'"]');
+  const target = autoplayGhostTarget();
+  if(!el || !target || typeof target.rot !== 'number') return false;
+  // A few visible taps on the rotate button (looks authentic) -- the
+  // actual rotation is set directly afterward via the same dataset+
+  // place() update a drag would produce, which is what genuinely
+  // satisfies the step's tolerance-based check reliably.
+  const btn = document.getElementById('paSpinCwBtn');
+  for(let i=0;i<3 && btn;i++){
+    await autoplayMoveHandToTarget(btn, i===0?550:250);
+    await autoplayTapPulse();
+    await autoplayWait(120);
+  }
+  el.dataset.rot = String(target.rot);
+  if(typeof place==='function') place(el);
+  await autoplayWait(600);
+  return true;
+}
+
+async function autoplayGiveBall(label){
+  await autoplayWait(500);
+  const el = document.querySelector('.player[data-label="'+label+'"]');
+  const btn = document.getElementById('paClaimBallBtn');
+  if(!el) return false;
+  await autoplayMoveHandToTarget(btn || el, 600);
+  await autoplayTapPulse();
+  if(typeof moveBallTo==='function') moveBallTo(el, 'right');
+  await autoplayWait(550);
+  return true;
+}
+
+async function autoplayAssignLeftArm(){
+  await autoplayWait(500);
+  const el = document.querySelector('.player[data-label="B6"]');
+  const btn = document.getElementById('paLeftArmBtn');
+  if(!el) return false;
+  await autoplayMoveHandToTarget(btn || el, 600);
+  await autoplayTapPulse();
+  if(typeof setArmSide==='function') setArmSide(el, 'left');
+  await autoplayWait(550);
+  return true;
+}
+
+async function autoplayTogglePose(label){
+  await autoplayWait(500);
+  const el = document.querySelector('.player[data-label="'+label+'"]');
+  if(!el) return false;
+  await autoplayMoveHandToTarget(el, 600);
+  await autoplayTapPulse();
+  el.dispatchEvent(new MouseEvent('click', {bubbles:true, cancelable:true}));
+  await autoplayWait(550);
+  return true;
+}
+
+// Same corridor-containment reasoning the real fix for this step relies
+// on (see Step 14's own validate comment): moving exactly onto the
+// ghost's position can occasionally land within its own required
+// movement threshold of where the defender already was. A small nudge
+// past the ghost target, in the same direction, clears that safely
+// without drifting outside the corridor's own tolerance.
+async function autoplayMoveDefenderToGhost(){
+  const el = document.querySelector('.player[data-label="B6"]');
+  const startX = el ? +el.dataset.x : null, startY = el ? +el.dataset.y : null;
+  const ok = await autoplayDragPlayerToGhost('B6', { dragMs: 1000 });
+  if(!ok || !el || startX===null) return ok;
+  const dx = +el.dataset.x-startX, dy = +el.dataset.y-startY;
+  const moved = Math.hypot(dx, dy);
+  if(moved < 0.2){
+    const scale = moved > 0.001 ? (0.28/moved) : 1;
+    el.dataset.x = String(startX + dx*scale);
+    el.dataset.y = String(startY + dy*scale);
+    if(typeof place==='function') place(el);
+    await autoplayWait(300);
+  }
+  return true;
+}
+
+async function autoplayScrollGesture(){
+  await autoplayWait(600);
+  const zone = document.getElementById('fcScrollZoneRight') || document.getElementById('fcScrollZoneLeft');
+  const wrap = document.getElementById('stageWrap');
+  if(!zone || !wrap) return false;
+  await autoplayMoveHandToTarget(zone, 600);
+  const startTop = wrap.scrollTop;
+  const targetTop = startTop + 120;
+  const steps = 10;
+  for(let i=1;i<=steps;i++){
+    wrap.scrollTop = startTop + (targetTop-startTop)*(i/steps);
+    const p = autoplayPointFor(zone);
+    autoplaySetHandPosition(p.x, p.y - i*4, 120);
+    await autoplayWait(70);
+  }
+  await autoplayWait(500);
+  return true;
+}
+
+async function autoplayDrawSomething(){
+  await autoplayWait(600);
+  const board = document.getElementById('board');
+  const arrowsGroup = document.getElementById('arrowsGroup');
+  if(!board || !arrowsGroup) return false;
+  const r = board.getBoundingClientRect();
+  const x1 = r.left + r.width*0.4, y1 = r.top + r.height*0.55;
+  const x2 = r.left + r.width*0.6, y2 = r.top + r.height*0.4;
+  autoplaySetHandPosition(x1, y1, 550);
+  await autoplayWait(650);
+  await autoplayTapPulse();
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', 'M '+(x1-r.left)+','+(y1-r.top)+' L '+(x2-r.left)+','+(y2-r.top));
+  path.classList.add('drawing');
+  path.dataset.kind = 'freehand';
+  path.dataset.id = 'autoplayDemo'+Date.now();
+  arrowsGroup.appendChild(path);
+  autoplaySetHandPosition(x2, y2, 500);
+  await autoplayWait(550);
+  // The real step requires a ~2s quiet period after the last change to
+  // the drawing before it validates -- waiting it out here rather than
+  // trying to shortcut it keeps this step's pacing identical to a real
+  // person's.
+  await autoplayWait(2200);
+  return true;
+}
+
+async function autoplayOpenReset(){
+  await autoplayWait(600);
+  return autoplayClickTarget('#resetBtn', { moveMs:700 });
+}
+
+async function autoplayPlayAndWait(){
+  await autoplayWait(550);
+  // When not already playing, #tcPlayPauseBtn's own content is replaced
+  // by two inner half-buttons (reverse/forward), each with its own click
+  // handler and stopPropagation() -- the outer container's own listener
+  // only does anything while playback is already running. The real tap
+  // target is the forward half specifically.
+  const forwardHalf = document.getElementById('tcPlayForwardHalf');
+  const target = forwardHalf || document.getElementById('tcPlayPauseBtn');
+  if(!target) return false;
+  await autoplayMoveHandToTarget(target, 650);
+  await autoplayTapPulse();
+  target.dispatchEvent(new MouseEvent('click', {bubbles:true, cancelable:true}));
+  await autoplayWait(300);
+  // Checking only "!playing" right after the click would resolve
+  // instantly (nothing has started yet, so it's already false) -- wait
+  // for playback to genuinely start first, then genuinely finish.
+  await autoplayWaitForCondition(()=> playing, 3000);
+  await autoplayWaitForCondition(()=> !playing, 20000);
+  return true;
+}
+
+function autoplayWaitForCondition(fn, timeoutMs){
+  return new Promise(resolve=>{
+    const start = Date.now();
+    const check = () => {
+      let result = false;
+      try { result = !!fn(); } catch(err){ result = false; }
+      if(result){ resolve(true); return; }
+      if(Date.now()-start > timeoutMs){ resolve(false); return; }
+      setTimeout(check, 150);
+    };
+    check();
+  });
+}
+
+// Dispatches on the current step's instruction text -- the same
+// approach used throughout this project's own test scripts, matched
+// against the exact wording already in buildFirstCoachingSessionSteps.
+// Falls through to a generic click-the-highlight for anything
+// unrecognized, so a future step added without updating this list still
+// does *something* reasonable rather than stalling outright.
+async function autoplayPerformStep(step){
+  const instr = step.instruction || '';
+  if(step.isPreStep){ await autoplayClickTarget('#tutorialAcknowledgeBtn'); return; }
+  if(instr.includes('Save/Open button')) return autoplayClickTarget('#saveOpenBtn');
+  if(instr.includes('"Open Sequence"')) return autoplayClickTarget('#soMenuOpenSequence');
+  if(instr.includes('First Coaching Session') && instr.includes('load it')) return autoplayClickTarget(step.highlight, {moveMs:700});
+  if(instr.includes('start the intro')) return autoplayPlayAndWait();
+  if(instr.includes('"View" tab')) return autoplayClickTarget('#viewToggleTab');
+  if(instr.includes('Front Court (Zoomed)')) return autoplayClickTarget('#viewOptionFrontCourtZoomed');
+  if(instr.includes('click-drag')) return autoplayScrollGesture();
+  if(instr.includes('attacker who will run')) return autoplaySelectPlayer('W1');
+  if(instr.includes('Grey shade = target spot')) return autoplayDragPlayerToGhost('W1');
+  if(instr.includes('clockwise button')) return autoplayRotatePlayerToGhost('W1');
+  if(instr.includes('ball icon')) return autoplayGiveBall('W1');
+  if(instr.includes('"Quicks" tab')) return autoplayClickTarget('#showQuickCommandBarTab');
+  if(instr.includes('"Smart Positioning" icon')) return autoplayClickTarget(autoplayQCBButton('Smart Positioning'));
+  if(instr.includes('nudge the attacker') || instr.includes('Drag the attacker toward the grey shade')) return autoplayDragPlayerToGhost('W1', {dragMs:1000});
+  if(instr.includes('"Shooting Angle" icon')) return autoplayClickTarget(autoplayQCBButton('Shooting Angle'));
+  if(instr.includes('Tap the highlighted defender to select')) return autoplaySelectPlayer('B6');
+  if(instr.includes('Grey shade = target, inside')) return autoplayMoveDefenderToGhost();
+  if(instr.includes('Left Arm')) return autoplayAssignLeftArm();
+  if(instr.includes('horizontal (swimming)')) return autoplayTogglePose('B6');
+  if(instr.includes('back to a vertical position')) return autoplayTogglePose('B6');
+  if(instr.includes('"Free Draw" icon')) return autoplayClickTarget(autoplayQCBButton('Free Draw'));
+  if(instr.includes('Draw directly on the field')) return autoplayDrawSomething();
+  if(instr.includes('trash-can icon')) return autoplayClickTarget(autoplayQCBButton('Clear Arrows'));
+  if(instr.includes('"Reset" button')) return autoplayOpenReset();
+  if(instr.includes('watch the play continue')) return autoplayPlayAndWait();
+  // Fallback: just click whatever the step is already highlighting.
+  return autoplayClickTarget(step.highlight);
+}
+
+function autoplayWaitForStepChange(fromIdx, timeoutMs){
+  return new Promise(resolve=>{
+    const start = Date.now();
+    const check = () => {
+      if(!tutorialModeActive){ resolve(true); return; } // natural completion counts as "advanced"
+      if(tutorialStepIndex !== fromIdx){ resolve(true); return; }
+      if(Date.now()-start > timeoutMs){ resolve(false); return; }
+      setTimeout(check, 150);
+    };
+    check();
+  });
+}
+
+let autoplayDemoRunning = false;
+async function runAutoplayDemo(){
+  if(autoplayDemoRunning) return;
+  autoplayDemoRunning = true;
+  document.body.classList.add('guestAutoplayActive');
+  try {
+    while(tutorialModeActive){
+      const idx = tutorialStepIndex;
+      const step = tutorialSteps[idx];
+      if(!step) break;
+      try { await autoplayPerformStep(step); }
+      catch(err){ console.error('Autoplay demo: step action failed', err); }
+      const advanced = await autoplayWaitForStepChange(idx, 30000);
+      if(!advanced) break; // safety net so a stalled step doesn't loop forever during a live recording
+    }
+  } finally {
+    autoplayHandEl()?.classList.remove('show');
+    document.body.classList.remove('guestAutoplayActive');
+    autoplayDemoRunning = false;
+  }
+}
+
+// Hidden trigger: 7 taps on the Welcome Screen's own title, same
+// convention as the app's existing developer-mode trigger (see
+// _devModeTapCount elsewhere) -- discreet since it's on text that isn't
+// normally tappable at all, and bounded by the same "reset after 3s of
+// inactivity" pattern so accidental taps don't accumulate indefinitely.
+let _autoplayTapCount = 0, _autoplayTapTimer = null;
+document.querySelector('#guestWelcomeScreen h1')?.addEventListener('click', ()=>{
+  _autoplayTapCount++;
+  clearTimeout(_autoplayTapTimer);
+  _autoplayTapTimer = setTimeout(()=>{ _autoplayTapCount=0; }, 3000);
+  if(_autoplayTapCount>=7){
+    _autoplayTapCount=0; clearTimeout(_autoplayTapTimer);
+    hideGuestOverlays();
+    launchTutorial(); // same entry point Continue/Skip already use -- no separate tutorial launch path
+    setTimeout(()=>runAutoplayDemo(), 250);
+  }
+});
+
+// Fallback trigger, same gesture, for when the Guest Welcome Screen has
+// already been seen on this browser and therefore isn't shown anymore
+// (by design -- see GUEST_WELCOME_SEEN_KEY) -- without this, there'd be
+// no way back to the hidden gesture at all on a browser that's already
+// been through it once. Lives on the tutorial's own instruction banner
+// instead, gated to only count taps while the very first (Welcome)
+// pre-step is showing, so it's still specifically "the first screen"
+// either way -- whichever of the two actually turns out to be first for
+// a given visit.
+document.getElementById('tutorialInstruction')?.addEventListener('click', ()=>{
+  if(!GUEST_EXPERIENCE_MODE) return;
+  if(document.getElementById('tutorialStepCount')?.textContent !== 'Welcome') return;
+  _autoplayTapCount++;
+  clearTimeout(_autoplayTapTimer);
+  _autoplayTapTimer = setTimeout(()=>{ _autoplayTapCount=0; }, 3000);
+  if(_autoplayTapCount>=7){
+    _autoplayTapCount=0; clearTimeout(_autoplayTapTimer);
+    runAutoplayDemo(); // already at the tutorial's first step -- no need to relaunch, just start driving from here
+  }
+});
 
 document.getElementById('guestExitContinueBtn')?.addEventListener('click', ()=>{
   hideGuestOverlays();
