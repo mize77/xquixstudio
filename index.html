@@ -987,6 +987,7 @@
       <button id="shotBlockToggleBtn" data-tip="Show a translucent triangular corridor behind each defender's blocking arm, showing how much of the shot they're covering. Shift+Y toggles this on/off. Select a defender, then Shift+L / Shift+R to assign their blocking arm (or right-click/long-press the defender and choose Left Arm / Right Arm / No Block).">Shot Block Corridors: Off</button>
       <button id="goalieVisionToggleBtn" data-tip="Show each goalie's field of view as a green cone, always centered on the ball. A wider, lighter secondary cone shows the peripheral area they should also stay aware of.">Goalie Vision Field: Off</button>
       <button id="shootingAngleToggleBtn" data-tip="Show two dotted lines from the ball to each goal post for the current ball carrier, marking their shooting angle -- and the point the goalie should center on. Only shows for a vertical (non-swimming) player with the ball.">Shooting Angle: Off</button>
+      <button id="smartGoaliePositioningToggleBtn" data-tip="When on, the defending goalie (opposite color from whoever has the ball) automatically moves along an arc centered on their own goal, squared to the shooter, up to a configurable maximum turning angle and lateral distance. Click to open its settings.">Smart Goalie Positioning: Off</button>
     </div>
   </div>
 
@@ -1539,6 +1540,15 @@ const MizeDialog = (function(){
     <label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="shotClockShowOnScreen" checked> Show clocks on screen</label>
   </div>
 </div>
+<div class="toolPanel" id="smartGoaliePositioningPanel">
+  <div class="toolPanelHeader"><h3>Smart Goalie Positioning</h3><button class="closeToolPanelBtn">&#10005;</button></div>
+  <div class="toolPanelBody">
+    <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;"><input type="checkbox" id="smartGoalieEnabledCheckbox"> Enabled</label>
+    <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">Distance to goal-line, central position (m): <input id="smartGoalieDistanceInput" type="number" min="0.1" max="5" step="0.1" value="0.9" style="width:70px;"></label>
+    <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">Maximum turning angle (±°, from squared to the other goal): <input id="smartGoalieMaxAngleInput" type="number" min="0" max="90" step="1" value="45" style="width:70px;"></label>
+    <label style="display:flex;align-items:center;gap:8px;">Lateral reach of the arc (±m, together with Distance to Goal this shapes the arc -- circle if equal, oval if not; fully reached only at a 90° max angle): <input id="smartGoalieMaxLateralInput" type="number" min="0.1" max="5" step="0.1" value="1.2" style="width:70px;"></label>
+  </div>
+</div>
 <div class="toolPanel" id="viewPanel">
   <div class="toolPanelHeader"><h3>View</h3><button class="closeToolPanelBtn">&#10005;</button></div>
   <div class="toolPanelBody">
@@ -1724,6 +1734,11 @@ const fieldZonesGroup = document.getElementById('fieldZonesGroup');
 let shotBlockActive=false;
 let goalieVisionActive=false;
 let shootingAngleActive=false;
+let smartGoaliePositioningActive=false;
+let smartGoalieDistanceToGoal=0.9; // meters off the goal line in the central (angle=0) position -- this is also the radius of the arc the goalie moves along
+let smartGoalieMaxTurnAngle=45; // degrees, +/- from squared-to-the-other-goal; also caps how far around that arc the goalie moves
+let smartGoalieMaxLateralDist=1.2; // meters, +/- from goal center -- independent safety cap (e.g. if distanceToGoal is increased enough that the angle cap alone would push the goalie past this)
+let _smartGoaliePositioningUpdating=false; // reentrancy guard for renderSmartGoaliePositioning() -- declared here (not next to that function, much later in the file) so it's already initialized by the time place()/placeBall() can first call it, including during initial script execution
 const MIZE = { State: {}, Field: {}, Players: {}, Ball: {}, Timeline: {}, Storage: {}, Presentation: {}, UI: {} };
 // Shot Clock state, migrated into the MIZE namespace (Stage 2, slice 2).
 // Previously six independent global bindings; field names below map 1:1
@@ -2732,6 +2747,7 @@ MIZE.State.settings = {};
   ['frontCourtActive', ()=>frontCourtActive, v=>frontCourtActive=v],
   ['shotBlockActive', ()=>shotBlockActive, v=>shotBlockActive=v],
   ['goalieVisionActive', ()=>goalieVisionActive, v=>goalieVisionActive=v],
+  ['smartGoaliePositioningActive', ()=>smartGoaliePositioningActive, v=>smartGoaliePositioningActive=v],
   ['smartPositioningActive', ()=>smartPositioningActive, v=>smartPositioningActive=v],
   ['multiSelectMode', ()=>multiSelectMode, v=>multiSelectMode=v],
   ['snapEnabled', ()=>snapEnabled, v=>snapEnabled=v],
@@ -3123,6 +3139,7 @@ function place(el) {
   renderShotBlockCorridors();
   renderGoalieVision();
   renderShootingAngle();
+  renderSmartGoaliePositioning();
 }
 // Sizes an extra ball exactly like the primary ball (see placeBall()) --
 // kept in its own function since extra balls go through the generic
@@ -3313,6 +3330,7 @@ function placeBall() {
   renderShotBlockCorridors();
   renderGoalieVision();
   renderShootingAngle();
+  renderSmartGoaliePositioning();
 }
 
 // Declared here (far above the rest of Tutorial Mode, which lives with the
@@ -5115,6 +5133,7 @@ function startTutorial(steps, { onComplete } = {}){
   // without resetting them here too, they'd silently carry over into the
   // next tutorial run instead of starting from a clean slate.
   if(typeof goalieVisionActive!=='undefined'){ goalieVisionActive=false; if(typeof _goalieVisionUI!=='undefined') _goalieVisionUI.render(); }
+  if(typeof smartGoaliePositioningActive!=='undefined'){ smartGoaliePositioningActive=false; if(typeof updateSmartGoaliePositioningButton==='function') updateSmartGoaliePositioningButton(); }
   if(typeof MIZE!=='undefined' && MIZE.State && MIZE.State.fieldZones && MIZE.State.fieldZones.active!=='none' && typeof selectFieldZoneSet==='function'){ selectFieldZoneSet('none'); }
   if(typeof ghostMode!=='undefined' && typeof clearGhosts==='function'){ ghostMode=false; clearGhosts(); }
   if(typeof renderShotBlockCorridors==='function') renderShotBlockCorridors();
@@ -7808,7 +7827,7 @@ document.querySelectorAll('.cmdFlyout > button').forEach(b=>{
 });
 
 // --- Floating quick-command bar: 5 fixed presets (Photoshop-style) + 3 recently-used ---
-const QUICKBAR_PRESETS=['selectBtn','ballBtn','freeDrawBtn','shotBlockToggleBtn','goalieVisionToggleBtn','shootingAngleToggleBtn','eraseBtn','ghostBtn','noteBtn','passBtn','clearBtn','smartPositioningToggleBtn','fieldZonesToggleBtn','playerSetupsToggleBtn'];
+const QUICKBAR_PRESETS=['selectBtn','ballBtn','freeDrawBtn','shotBlockToggleBtn','goalieVisionToggleBtn','shootingAngleToggleBtn','eraseBtn','ghostBtn','noteBtn','passBtn','clearBtn','smartPositioningToggleBtn','fieldZonesToggleBtn','smartGoaliePositioningToggleBtn'];
 const QUICKBAR_ICONS={
   selectBtn:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 9 2 12 5 15"/><polyline points="9 5 12 2 15 5"/><polyline points="15 19 12 22 9 19"/><polyline points="19 9 22 12 19 15"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/></svg>',
   ballBtn:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M4.5 7.5c3 3 10 3 15 0M4.5 16.5c3-3 10-3 15 0"/></svg>',
@@ -7819,11 +7838,12 @@ const QUICKBAR_ICONS={
   eraseBtn:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18l7-11 7 4-7 11z"/><path d="M11 18h9"/></svg>',
   ghostBtn:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a7 7 0 0 0-7 7v9l2.5-2 2 2 2.5-2 2.5 2 2-2 2.5 2V10a7 7 0 0 0-7-7z"/><circle cx="9.5" cy="10.5" r="1" fill="currentColor" stroke="none"/><circle cx="14.5" cy="10.5" r="1" fill="currentColor" stroke="none"/></svg>',
   noteBtn:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="12" y2="16"/></svg>',
-  passBtn:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h14M13 6l6 6-6 6"/></svg>',
+  passBtn:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="16" r="2.6"/><circle cx="19" cy="16" r="2.6"/><path d="M7.3,14.2 Q12,4 16.7,14.2" stroke-dasharray="1.6 1.6"/><circle r="1.6" fill="currentColor" stroke="none"><animateMotion dur="1.6s" repeatCount="indefinite" keyPoints="0;1;0" keyTimes="0;0.5;1" calcMode="linear" path="M7.3,14.2 Q12,4 16.7,14.2"/></circle></svg>',
   clearBtn:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0-1 14a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1L6 6"/></svg>',
   smartPositioningToggleBtn:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7l2.5 4.5L9.5 15 12 7z"/></svg>',
   fieldZonesToggleBtn:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="1"/><line x1="8.7" y1="4" x2="8.7" y2="20"/><line x1="15.3" y1="4" x2="15.3" y2="20"/><line x1="2" y1="12" x2="22" y2="12"/><text x="5.3" y="9.6" font-size="5.4" fill="currentColor" stroke="none" text-anchor="middle" font-family="Arial, sans-serif" font-weight="700">1</text><text x="12" y="9.6" font-size="5.4" fill="currentColor" stroke="none" text-anchor="middle" font-family="Arial, sans-serif" font-weight="700">2</text><text x="18.7" y="9.6" font-size="5.4" fill="currentColor" stroke="none" text-anchor="middle" font-family="Arial, sans-serif" font-weight="700">3</text><text x="5.3" y="17.6" font-size="5.4" fill="currentColor" stroke="none" text-anchor="middle" font-family="Arial, sans-serif" font-weight="700">4</text><text x="12" y="17.6" font-size="5.4" fill="currentColor" stroke="none" text-anchor="middle" font-family="Arial, sans-serif" font-weight="700">5</text><text x="18.7" y="17.6" font-size="5.4" fill="currentColor" stroke="none" text-anchor="middle" font-family="Arial, sans-serif" font-weight="700">6</text></svg>',
   playerSetupsToggleBtn:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="3"/><path d="M2 20c0-4 2.7-6.5 6-6.5s6 2.5 6 6.5"/><circle cx="17.5" cy="8.5" r="2.3"/><path d="M14.7 14.2c2.6 0 5 2.1 5.5 5.8"/></svg>',
+  smartGoaliePositioningToggleBtn:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7,6 L3,6 L3,18 L7,18"/><path d="M8.657,6.343 A8,8 0 0,1 8.657,17.657" stroke-dasharray="1.6 1.6"/><circle r="1.7" fill="currentColor" stroke="none"><animateMotion dur="2.4s" repeatCount="indefinite" keyPoints="0;1;0" keyTimes="0;0.5;1" calcMode="linear" path="M8.657,6.343 A8,8 0 0,1 8.657,17.657"/></circle></svg>',
 };
 function renderQuickCommandBar(){
   const bar=document.getElementById('quickCommandBar');
@@ -10119,6 +10139,125 @@ const _shootingAngleUI=MIZE.UI.ToggleButton('shootingAngleToggleBtn', 'Shooting 
   ()=>shootingAngleActive, v=>{ shootingAngleActive=v; },
   ()=>{ renderShootingAngle(); });
 function toggleShootingAngle(){ _shootingAngleUI.toggle(); }
+
+// ===== Smart Goalie Positioning =====
+// Applies only to the DEFENDING goalie -- the one whose side is opposite
+// the current ball carrier's, found via the same playerSide()/team==='goalie'
+// conventions goalPointFor() and Goalie Vision already use elsewhere, not a
+// new detection mechanism. Continuously live (like Smart Positioning), not
+// a one-time snap -- recalculated on every place()/placeBall() call so it
+// tracks the ball in real time.
+function findDefendingGoalie(){
+  if(!ballCarrier) return null;
+  const carrierSide = playerSide(ballCarrier);
+  const goalies = [...document.querySelectorAll('.player')].filter(el=>el.dataset.team==='goalie' && el.dataset.hidden!=='true');
+  return goalies.find(g=>playerSide(g)!==carrierSide) || null;
+}
+// Geometry: builds a local (out, lateral) basis at the goalie's OWN goal --
+// "out" points from that goal toward the opposite goal (the "squared to the
+// other goal" reference direction, i.e. 0 degrees), "lateral" is perpendicular
+// to it. The ball's position expressed in this basis gives its angle relative
+// to straight-ahead; clamping that angle to +/-maxTurnAngle and placing the
+// goalie at (distanceToGoal, that angle) around their own goal is exactly the
+// "quarter arc at 45 degrees" behavior -- the same clamped angle also defines
+// which direction they face, so position and rotation always agree.
+function computeSmartGoaliePosition(goalieEl){
+  if(!ballCarrier || typeof ball==='undefined' || !ball) return null;
+  const carrierSide = playerSide(ballCarrier);
+  const myGoal = goalPointFor(carrierSide); // the goal the carrier attacks == the goal this goalie defends
+  const otherGoal = goalPointFor(playerSide(goalieEl)); // the goal the goalie's OWN side attacks -- the "other" goal from their perspective
+  const ballX = +ball.dataset.x, ballY = +ball.dataset.y;
+
+  const outX = otherGoal.x-myGoal.x, outY = otherGoal.y-myGoal.y;
+  const outLen = Math.hypot(outX,outY) || 1;
+  const outUX = outX/outLen, outUY = outY/outLen;
+  const latUX = -outUY, latUY = outUX; // perpendicular
+
+  const relX = ballX-myGoal.x, relY = ballY-myGoal.y;
+  const alongOut = relX*outUX + relY*outUY;
+  const alongLat = relX*latUX + relY*latUY;
+
+  const ballAngleDeg = Math.atan2(alongLat, alongOut) * 180/Math.PI;
+  const maxAngle = Math.max(0, smartGoalieMaxTurnAngle);
+  const clampedDeg = Math.max(-maxAngle, Math.min(maxAngle, ballAngleDeg));
+  const rad = clampedDeg*Math.PI/180;
+
+  // distanceToGoal and maxLateralDist are the ellipse's two semi-axes,
+  // used directly -- their combination is what shapes the arc from a
+  // circle (equal values) to an oval (different values). No separate
+  // clamp needed: since |sin(rad)|<=1, posLat can never exceed
+  // maxLateralDist on its own, reached exactly at a +/-90 degree cap.
+  const distOut = Math.max(0.05, smartGoalieDistanceToGoal);
+  const distLat = Math.max(0.05, smartGoalieMaxLateralDist);
+  const posOut = distOut*Math.cos(rad);
+  const posLat = distLat*Math.sin(rad);
+
+  const targetX = myGoal.x + posOut*outUX + posLat*latUX;
+  const targetY = myGoal.y + posOut*outUY + posLat*latUY;
+
+  // Rotation is derived from the unscaled (cos,sin) direction, not the
+  // ellipse-scaled position -- it tracks the clamped ball angle directly,
+  // independent of whatever shape the position arc takes.
+  const facingDirX = Math.cos(rad)*outUX + Math.sin(rad)*latUX;
+  const facingDirY = Math.cos(rad)*outUY + Math.sin(rad)*latUY;
+  const rot = faceRotationTo(targetX, targetY, targetX+facingDirX, targetY+facingDirY);
+
+  return { x:targetX, y:targetY, rot };
+}
+function renderSmartGoaliePositioning(){
+  if(_smartGoaliePositioningUpdating || !smartGoaliePositioningActive) return;
+  const goalie = findDefendingGoalie();
+  if(!goalie) return;
+  const pos = computeSmartGoaliePosition(goalie);
+  if(!pos) return;
+  const curX=+goalie.dataset.x, curY=+goalie.dataset.y, curRot=+goalie.dataset.rot||0;
+  const posChanged = Math.abs(curX-pos.x)>0.001 || Math.abs(curY-pos.y)>0.001;
+  const rotDiff = pos.rot===null ? 0 : Math.min(Math.abs(curRot-pos.rot), 360-Math.abs(curRot-pos.rot));
+  if(!posChanged && rotDiff<=0.05) return;
+  _smartGoaliePositioningUpdating = true;
+  try {
+    goalie.dataset.x = pos.x; goalie.dataset.y = pos.y;
+    if(pos.rot!==null) goalie.dataset.rot = pos.rot;
+    place(goalie);
+  } finally {
+    _smartGoaliePositioningUpdating = false;
+  }
+}
+function updateSmartGoaliePositioningButton(){
+  const btn = document.getElementById('smartGoaliePositioningToggleBtn');
+  if(btn){ btn.textContent = 'Smart Goalie Positioning: '+(smartGoaliePositioningActive?'On':'Off'); btn.classList.toggle('active', smartGoaliePositioningActive); }
+}
+document.getElementById('smartGoaliePositioningToggleBtn')?.addEventListener('click', ()=>{
+  const panel = document.getElementById('smartGoaliePositioningPanel');
+  if(panel.classList.contains('open')){ closeToolPanels(); return; }
+  const cb = document.getElementById('smartGoalieEnabledCheckbox'); if(cb) cb.checked = smartGoaliePositioningActive;
+  const di = document.getElementById('smartGoalieDistanceInput'); if(di) di.value = smartGoalieDistanceToGoal;
+  const ai = document.getElementById('smartGoalieMaxAngleInput'); if(ai) ai.value = smartGoalieMaxTurnAngle;
+  const li = document.getElementById('smartGoalieMaxLateralInput'); if(li) li.value = smartGoalieMaxLateralDist;
+  openToolPanel('smartGoaliePositioningPanel');
+});
+document.getElementById('smartGoalieEnabledCheckbox')?.addEventListener('change', e=>{
+  smartGoaliePositioningActive = e.target.checked;
+  updateSmartGoaliePositioningButton();
+  renderQuickCommandBar();
+  renderSmartGoaliePositioning();
+});
+document.getElementById('smartGoalieDistanceInput')?.addEventListener('change', e=>{
+  smartGoalieDistanceToGoal = Math.max(0.1, +e.target.value||0.9);
+  e.target.value = smartGoalieDistanceToGoal;
+  renderSmartGoaliePositioning();
+});
+document.getElementById('smartGoalieMaxAngleInput')?.addEventListener('change', e=>{
+  smartGoalieMaxTurnAngle = Math.max(0, Math.min(90, +e.target.value||45));
+  e.target.value = smartGoalieMaxTurnAngle;
+  renderSmartGoaliePositioning();
+});
+document.getElementById('smartGoalieMaxLateralInput')?.addEventListener('change', e=>{
+  smartGoalieMaxLateralDist = Math.max(0.1, +e.target.value||1.2);
+  e.target.value = smartGoalieMaxLateralDist;
+  renderSmartGoaliePositioning();
+});
+updateSmartGoaliePositioningButton();
 
 // ===== Smart screen-fit sizing =====
 // Goal: the actual playing surface (25x20m) plus the goal margins on x
