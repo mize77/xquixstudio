@@ -67,6 +67,7 @@
      of it. */
   body.guestExperienceActive .cmdCategory[data-cat="editing"],
   body.guestExperienceActive .cmdCategory[data-cat="present"],
+  body.guestExperienceActive .cmdCategory[data-cat="library"],
   body.guestExperienceActive #moreToolsPanel,
   body.guestExperienceActive #newBtn,
   body.guestExperienceActive #saveFormationBtn,
@@ -500,6 +501,13 @@
   #exitPresentationBtn { display:none; position:fixed; bottom:calc(14px + env(safe-area-inset-bottom)); left:calc(14px + env(safe-area-inset-left)); z-index:1500; width:34px; height:34px; border-radius:50%; background:rgba(20,20,20,.85); color:#fff; border:1.5px solid rgba(255,255,255,.5); font-size:15px; align-items:center; justify-content:center; padding:0; box-shadow:0 2px 8px rgba(0,0,0,.5); }
   body.presentation #exitPresentationBtn { display:flex; }
   #presentationPlaybackBar { display:none; position:fixed; bottom:calc(14px + env(safe-area-inset-bottom)); right:calc(14px + env(safe-area-inset-right)); z-index:1500; background:rgba(20,25,25,.85); border-radius:999px; padding:8px 10px; align-items:center; gap:14px; }
+  #presentationTextSlide { display:none; position:fixed; inset:0; z-index:400; background:#0a2f3d; color:#fff; flex-direction:column; align-items:center; justify-content:center; padding:40px; text-align:center; box-sizing:border-box; }
+  #presentationTextSlide.show { display:flex; }
+  .presTextSlideRole { font-size:14px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#7fd8c8; margin-bottom:12px; }
+  .presTextSlideTitle { font-size:clamp(24px,4vw,42px); font-weight:700; margin-bottom:20px; max-width:900px; }
+  .presTextSlideBody { font-size:clamp(15px,2vw,20px); line-height:1.6; max-width:750px; white-space:pre-wrap; color:rgba(255,255,255,.9); max-height:60vh; overflow-y:auto; }
+  #presentationCoachNote { display:none; position:fixed; bottom:calc(70px + env(safe-area-inset-bottom)); right:calc(14px + env(safe-area-inset-right)); z-index:1499; background:rgba(20,25,25,.85); color:rgba(255,255,255,.85); font-size:12.5px; padding:8px 14px; border-radius:12px; max-width:320px; }
+  #presentationCoachNote.show { display:block; }
   #timelineCommandsBar { display:none; position:fixed; bottom:calc(14px + env(safe-area-inset-bottom)); left:50%; transform:translateX(-50%); z-index:1500; background:rgba(20,25,25,.85); border-radius:999px; padding:8px 10px; align-items:center; gap:10px; }
   #timelineCommandsHandle { cursor:grab; padding:6px 8px; margin:-6px 2px -6px -8px; background:#124d4d; color:#fff; border-radius:8px 0 0 8px; touch-action:none; display:flex; align-items:center; justify-content:center; align-self:stretch; }
   #timelineCommandsBar button { background:rgba(255,255,255,.14); border:1.5px solid rgba(255,255,255,.35); color:#fff; width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; padding:0; font-size:14px; }
@@ -621,6 +629,59 @@
   .closeToolPanelBtn { padding:6px 12px; }
   .toolPanelBody { padding:16px 18px 20px; }
 
+  /* ===== Coaching Library ===== */
+  .toolPanelLarge { width:min(900px,95vw); }
+  #librarySearchInput { width:100%; box-sizing:border-box; padding:10px 12px; font-size:14px; border:1.5px solid #d5dede; border-radius:10px; margin-bottom:12px; }
+  #libraryViewTabs { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
+  .libViewTab { padding:7px 14px; border-radius:20px; border:1.5px solid #d5dede; background:#fff; color:#26302f; font-size:13px; font-weight:600; cursor:pointer; }
+  .libViewTab.active { background:#124d4d; border-color:#124d4d; color:#fff; }
+  #libraryBreadcrumb { font-size:12.5px; color:#5a6664; margin-bottom:10px; display:flex; flex-wrap:wrap; align-items:center; gap:4px; }
+  #libraryBreadcrumb button { background:none; border:none; color:#1b7373; font-size:12.5px; font-weight:600; cursor:pointer; padding:2px 4px; }
+  #libraryBreadcrumb .libCrumbSep { color:#aab4b2; }
+  #libraryNewButtons { display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; }
+  #libraryContent { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:12px; }
+  .libAssetCard { border:1.5px solid #e1e6e6; border-radius:12px; padding:12px; cursor:pointer; text-align:left; background:#fff; display:flex; flex-direction:column; gap:6px; }
+  .libAssetCard:hover { border-color:#1b7373; }
+  .libAssetCardTop { display:flex; align-items:flex-start; justify-content:space-between; gap:6px; }
+  .libAssetCardType { font-size:10.5px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:#1b7373; }
+  .libAssetCardTitle { font-size:14px; font-weight:700; color:#182524; margin:0; }
+  .libAssetCardDesc { font-size:12px; color:#5a6664; margin:0; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .libAssetCardTags { display:flex; flex-wrap:wrap; gap:4px; margin-top:2px; }
+  .libTagChip { font-size:10.5px; background:#eef3f2; color:#39514e; border-radius:10px; padding:2px 8px; }
+  .libFavStar { background:none; border:none; font-size:16px; cursor:pointer; color:#c7cfce; padding:0; line-height:1; }
+  .libFavStar.active { color:#e0a72c; }
+  .libCollectionCard { border:1.5px solid #e1e6e6; border-radius:12px; padding:14px; cursor:pointer; background:#fbfdfd; text-align:left; }
+  .libCollectionCard h4 { margin:0 0 4px; font-size:14px; }
+  .libCollectionCard p { margin:0; font-size:12px; color:#5a6664; }
+  .libEmptyState { grid-column:1/-1; text-align:center; padding:30px 10px; color:#8a9492; font-size:13.5px; }
+  .libFormRow { margin-bottom:10px; display:flex; flex-direction:column; gap:4px; }
+  .libFormRow label { font-size:12.5px; font-weight:600; color:#39514e; }
+  .libFormRow input[type="text"], .libFormRow textarea, .libFormRow select { padding:8px 10px; border:1.5px solid #d5dede; border-radius:8px; font-size:13.5px; font-family:inherit; box-sizing:border-box; width:100%; }
+  .libFormRow textarea { min-height:70px; resize:vertical; }
+  .libDetailActions { display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; }
+  .libPracticeItem { display:flex; align-items:center; gap:8px; border:1px solid #e1e6e6; border-radius:8px; padding:8px 10px; margin-bottom:6px; }
+  .libPracticeItem span { flex:1; font-size:13px; }
+  .libPracticeItemFull { flex-direction:column; align-items:stretch; gap:6px; }
+  .libPracticeItemTop { display:flex; align-items:center; gap:8px; }
+  .libPracticeItemNum { font-weight:700; color:#5a6664; font-size:12px; flex-shrink:0; }
+  .libPracticeItemRole { font-size:12px; padding:4px 6px; border-radius:6px; border:1.5px solid #d5dede; flex-shrink:0; }
+  .libPracticeItemTime { font-size:12px; padding:4px 6px; border-radius:6px; border:1.5px solid #d5dede; flex-shrink:0; width:64px; }
+  .libPracticeItemDay { font-size:12px; padding:4px 6px; border-radius:6px; border:1.5px solid #d5dede; flex-shrink:0; width:44px; }
+  .libPracticeItemTitle { flex:1; font-size:13px; }
+  .libPracticeItemTitle em { color:#8a9492; font-style:normal; font-size:11px; }
+  .libPracticeItemActions { display:flex; align-items:center; gap:6px; }
+  .libPracticeItemNoteInput { flex:1; font-size:12.5px; padding:5px 8px; border-radius:6px; border:1.5px solid #e1e6e6; min-width:0; }
+  .libPracticeItemActions button { padding:4px 8px; border-radius:6px; border:1.5px solid #d5dede; background:#fff; font-size:12px; cursor:pointer; flex-shrink:0; }
+  .libPracticeItemActions button:disabled { opacity:.35; cursor:default; }
+  #libraryTypeFilters { display:flex; flex-wrap:wrap; gap:5px; margin-bottom:10px; }
+  .libTypeFilterPill { padding:5px 11px; border-radius:16px; border:1.5px solid #e1e6e6; background:#fbfdfd; color:#5a6664; font-size:12px; font-weight:600; cursor:pointer; }
+  .libTypeFilterPill.active { background:#e8f2f1; border-color:#1b7373; color:#124d4d; }
+  .libAddCard { border:1.5px dashed #b9c6c4 !important; background:#f7faf9 !important; color:#1b7373; }
+  .libAddCard h4 { color:#1b7373; }
+  .libCollectionCard { position:relative; }
+  .libCardDeleteBtn { position:absolute; top:8px; right:8px; background:none; border:none; color:#b53434; font-size:11px; font-weight:700; cursor:pointer; padding:2px 6px; }
+  .libCardEditBtn { position:absolute; top:8px; right:56px; background:none; border:none; color:#1b7373; font-size:11px; font-weight:700; cursor:pointer; padding:2px 6px; }
+
   /* ===== MIZE.UI.Dialog -- replaces native alert/confirm/prompt ===== */
   #mizeDialogBackdrop { display:none; position:fixed; inset:0; background:rgba(11,43,43,.55); z-index:2100; }
   #mizeDialogBackdrop.open { display:block; }
@@ -724,6 +785,12 @@
   <img id="splashLogo" alt="">
 </div>
 <button id="exitPresentationBtn" title="Exit Presentation">&#10005;</button>
+<div id="presentationTextSlide">
+  <div class="presTextSlideRole"></div>
+  <div class="presTextSlideTitle"></div>
+  <div class="presTextSlideBody"></div>
+</div>
+<div id="presentationCoachNote"></div>
 <div id="presentationPlaybackBar">
   <button id="presentationPrevBtn" title="Previous slide (Left Arrow)">&#8592;</button>
   <span id="presentationSlideCounter"></span>
@@ -1037,6 +1104,13 @@
       <button id="ghostBtn" data-tip="Show a faded outline of the previous frame's positions while you set up the next one.">Ghost Mode</button>
       <button id="eraseBtn" class="modeBtn" data-tip="Tap a drawing to erase just that one.">Erase Drawings</button>
       <button id="clearBtn" data-tip="Clear every arrow, highlight, and note from the field.">Clear Arrows</button>
+    </div>
+  </div>
+
+  <div class="cmdCategory" data-cat="library">
+    <button type="button" class="cmdCatHeader">Coaching Library <span class="chev">&#9656;</span></button>
+    <div class="cmdFlyout">
+      <button id="openCoachingLibraryBtn" data-tip="Browse, search and organize your coaching knowledge -- formations, sequences, practice sessions and notes -- across organizations and collections.">Open Coaching Library</button>
     </div>
   </div>
 
@@ -1560,6 +1634,50 @@ const MizeDialog = (function(){
     <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">Distance to goal-line, central position (m): <input id="smartGoalieDistanceInput" type="number" min="0.1" max="5" step="0.1" value="0.9" style="width:70px;"></label>
     <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">Maximum turning angle (±°, from squared to the other goal): <input id="smartGoalieMaxAngleInput" type="number" min="0" max="90" step="1" value="45" style="width:70px;"></label>
     <label style="display:flex;align-items:center;gap:8px;">Lateral reach of the arc (±m, together with Distance to Goal this shapes the arc -- circle if equal, oval if not; fully reached only at a 90° max angle): <input id="smartGoalieMaxLateralInput" type="number" min="0.1" max="5" step="0.1" value="1.2" style="width:70px;"></label>
+  </div>
+</div>
+<div class="toolPanel toolPanelLarge" id="coachingLibraryPanel">
+  <div class="toolPanelHeader"><h3 id="libraryPanelTitle">Coaching Library</h3><button class="closeToolPanelBtn">&#10005;</button></div>
+  <div class="toolPanelBody">
+    <div id="libraryListStage">
+      <input type="search" id="librarySearchInput" placeholder="Search title, tags, description, category, author, age group...">
+      <div id="libraryTypeFilters">
+        <button type="button" class="libTypeFilterPill active" data-type="">All Types</button>
+        <button type="button" class="libTypeFilterPill" data-type="event">Events</button>
+        <button type="button" class="libTypeFilterPill" data-type="formation">Formations</button>
+        <button type="button" class="libTypeFilterPill" data-type="sequence">Sequences</button>
+        <button type="button" class="libTypeFilterPill" data-type="practice">Practice Sessions</button>
+        <button type="button" class="libTypeFilterPill" data-type="note">Coach Notes</button>
+        <button type="button" class="libTypeFilterPill" data-type="evaluation">Evaluations</button>
+        <button type="button" class="libTypeFilterPill" data-type="skill">Skill Exercises</button>
+        <button type="button" class="libTypeFilterPill" data-type="video">Videos</button>
+        <button type="button" class="libTypeFilterPill" data-type="document">Documents</button>
+        <button type="button" class="libTypeFilterPill" data-type="resource">Resources</button>
+      </div>
+      <div id="libraryViewTabs">
+        <button type="button" class="libViewTab active" data-view="all">All</button>
+        <button type="button" class="libViewTab" data-view="favorites">&#9733; Favorites</button>
+        <button type="button" class="libViewTab" data-view="recent">Recent</button>
+        <button type="button" class="libViewTab" data-view="collections">Collections</button>
+        <button type="button" class="libViewTab" data-view="tags">Tags</button>
+      </div>
+      <div id="libraryBreadcrumb"></div>
+      <div id="libraryNewButtons">
+        <button type="button" id="libraryNewEventBtn">+ Event</button>
+        <button type="button" id="libraryNewNoteBtn">+ Coach Note</button>
+        <button type="button" id="libraryNewPracticeBtn">+ Practice Session</button>
+        <button type="button" id="libraryNewEvaluationBtn">+ Evaluation</button>
+        <button type="button" id="libraryNewSkillBtn">+ Skill Exercise</button>
+        <button type="button" id="libraryNewVideoBtn">+ Video</button>
+        <button type="button" id="libraryNewDocumentBtn">+ Document</button>
+        <button type="button" id="libraryNewResourceBtn">+ Resource</button>
+      </div>
+      <div id="libraryContent"></div>
+    </div>
+    <div id="libraryDetailStage" style="display:none;">
+      <button type="button" id="libraryDetailBackBtn" class="efaBackBtn">&#8592; Back to Library</button>
+      <div id="libraryDetailBody"></div>
+    </div>
   </div>
 </div>
 <div class="toolPanel" id="viewPanel">
@@ -4025,16 +4143,29 @@ function renderSavedPresentations(){
 function loadPresentationSlide(index){
   if(!activePresentation) return;
   const slide=activePresentation.slides[index]; if(!slide) return;
-  if(slide.kind==='formation'){
-    const saved=JSON.parse(localStorage.getItem('wpStrategyFormationsV5')||'{}');
-    const rec=saved[slide.refName];
-    if(!rec){ MizeDialog.alert('Formation "'+slide.refName+'" no longer exists -- it may have been renamed or deleted.'); return; }
-    loadState(formationRecordState(rec));
-  } else if(slide.kind==='package'){
-    const packs=JSON.parse(localStorage.getItem('tpgTacticalPackagesV8')||'{}');
-    const rec=packs[slide.refName];
-    if(!rec){ MizeDialog.alert('Package "'+slide.refName+'" no longer exists -- it may have been renamed or deleted.'); return; }
-    frames=rec.frames||[rec.current]; currentFrame=0; loadFrame(0);
+  const textSlideEl=document.getElementById('presentationTextSlide');
+  if(slide.kind==='text'){
+    if(textSlideEl){
+      const roleEl=textSlideEl.querySelector('.presTextSlideRole');
+      roleEl.textContent=(slide.day!=null?'Day '+slide.day+(slide.time?', ':' \u2013 '):'')+(slide.time?slide.time+' \u2013 ':'')+(slide.role||'');
+      roleEl.style.display=(slide.day!=null||slide.time||slide.role)?'':'none';
+      textSlideEl.querySelector('.presTextSlideTitle').textContent=slide.title||'';
+      textSlideEl.querySelector('.presTextSlideBody').textContent=slide.body||'';
+      textSlideEl.classList.add('show');
+    }
+  } else {
+    if(textSlideEl) textSlideEl.classList.remove('show');
+    if(slide.kind==='formation'){
+      const saved=JSON.parse(localStorage.getItem('wpStrategyFormationsV5')||'{}');
+      const rec=saved[slide.refName];
+      if(!rec){ MizeDialog.alert('Formation "'+slide.refName+'" no longer exists -- it may have been renamed or deleted.'); return; }
+      loadState(formationRecordState(rec));
+    } else if(slide.kind==='package'){
+      const packs=JSON.parse(localStorage.getItem('tpgTacticalPackagesV8')||'{}');
+      const rec=packs[slide.refName];
+      if(!rec){ MizeDialog.alert('Package "'+slide.refName+'" no longer exists -- it may have been renamed or deleted.'); return; }
+      frames=rec.frames||[rec.current]; currentFrame=0; loadFrame(0);
+    }
   }
   updatePresentationPlaybackUI();
 }
@@ -4042,13 +4173,19 @@ function updatePresentationPlaybackUI(){
   const bar=document.getElementById('presentationPlaybackBar');
   const counter=document.getElementById('presentationSlideCounter');
   const prevBtn=document.getElementById('presentationPrevBtn'), nextBtn=document.getElementById('presentationNextBtn');
-  if(!activePresentation){ bar.classList.remove('active'); return; }
+  const noteEl=document.getElementById('presentationCoachNote');
+  if(!activePresentation){ bar.classList.remove('active'); if(noteEl) noteEl.classList.remove('show'); return; }
   bar.classList.add('active');
   const total=activePresentation.slides.length;
   const slide=activePresentation.slides[activeSlideIndex];
-  counter.textContent=(activeSlideIndex+1)+' / '+total+' — '+(slide?slide.refName:'');
+  const label=slide ? (slide.day!=null?'Day '+slide.day+(slide.time?', ':' \u2013 '):'')+(slide.time?slide.time+' \u2013 ':'')+(slide.role?slide.role+': ':'')+(slide.title||slide.refName||'') : '';
+  counter.textContent=(activeSlideIndex+1)+' / '+total+' — '+label;
   prevBtn.disabled=activeSlideIndex<=0;
   nextBtn.disabled=activeSlideIndex>=total-1;
+  if(noteEl){
+    if(slide && slide.note){ noteEl.textContent='Coach note: '+slide.note; noteEl.classList.add('show'); }
+    else { noteEl.classList.remove('show'); }
+  }
 }
 function presentSavedPresentation(rec){
   activePresentation=rec; activeSlideIndex=0;
@@ -4378,6 +4515,7 @@ function togglePresentation(mode){
     fitBtn.textContent='Presentation Mode';
     realBtn.textContent='Presentation Mode (Realistic Field)';
     activePresentation=null;
+    document.getElementById('presentationTextSlide')?.classList.remove('show');
     if(!frontCourtActive) setPresentationFieldGeometry(false); // Front Court owns its own field geometry -- don't clobber it
     disarmSpotlight();
     studioWindowsManuallyDark=false;
@@ -10333,6 +10471,777 @@ document.getElementById('smartGoalieMaxLateralInput')?.addEventListener('change'
   renderSmartGoaliePositioning();
 });
 updateSmartGoaliePositioningButton();
+
+// ===== Coaching Library (Phase 2 foundation) =====
+// Storage is fully abstracted behind LibraryStorage below -- nothing
+// else in this module, or the UI it drives, ever touches localStorage
+// directly. Swapping this for a real backend later means
+// re-implementing this one object's methods against a server instead of
+// localStorage; every call site elsewhere is already written against
+// this same async interface and wouldn't need to change at all.
+const MIZE_LIBRARY_DB_KEY = 'mizeCoachingLibraryV1';
+const LibraryStorage = (function(){
+  function emptyDb(){ return { organizations:{}, collections:{}, assets:{}, favorites:{}, recentlyUsed:[] }; }
+  function load(){
+    try { const raw = localStorage.getItem(MIZE_LIBRARY_DB_KEY); return raw ? JSON.parse(raw) : emptyDb(); }
+    catch(err){ return emptyDb(); }
+  }
+  function save(db){ localStorage.setItem(MIZE_LIBRARY_DB_KEY, JSON.stringify(db)); }
+  return {
+    async listOrganizations(){ return Object.values(load().organizations).sort((a,b)=>a.name.localeCompare(b.name)); },
+    async getOrganization(id){ return load().organizations[id]||null; },
+    async saveOrganization(org){ const db=load(); db.organizations[org.id]=org; save(db); return org; },
+    async listCollections(orgId){ return Object.values(load().collections).filter(c=>!orgId||c.orgId===orgId).sort((a,b)=>a.name.localeCompare(b.name)); },
+    async getCollection(id){ return load().collections[id]||null; },
+    async saveCollection(col){ const db=load(); db.collections[col.id]=col; save(db); return col; },
+    async deleteOrganization(id){ const db=load(); delete db.organizations[id]; save(db); },
+    async deleteCollection(id){ const db=load(); delete db.collections[id]; save(db); },
+    async listAssets(filter){
+      const db = load();
+      let items = Object.values(db.assets);
+      filter = filter||{};
+      if(filter.collectionId) items = items.filter(a=>a.collectionId===filter.collectionId);
+      if(filter.orgId) items = items.filter(a=>a.orgId===filter.orgId);
+      if(filter.type) items = items.filter(a=>a.type===filter.type);
+      if(filter.tag) items = items.filter(a=>(a.tags||[]).includes(filter.tag));
+      if(filter.favoritesOnly) items = items.filter(a=>!!db.favorites[a.id]);
+      if(filter.search){
+        const q = filter.search.toLowerCase();
+        items = items.filter(a =>
+          (a.title||'').toLowerCase().includes(q) ||
+          (a.description||'').toLowerCase().includes(q) ||
+          (a.category||'').toLowerCase().includes(q) ||
+          (a.author||'').toLowerCase().includes(q) ||
+          (a.ageGroup||'').toLowerCase().includes(q) ||
+          (a.tags||[]).some(t=>t.toLowerCase().includes(q))
+        );
+      }
+      items.sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+      return items.map(a=>({ ...a, favorite: !!db.favorites[a.id] }));
+    },
+    async getAsset(id){ const db=load(); const a=db.assets[id]; return a ? { ...a, favorite: !!db.favorites[id] } : null; },
+    async saveAsset(asset){
+      const db = load();
+      const now = Date.now();
+      const existing = db.assets[asset.id];
+      asset.updatedAt = now;
+      asset.createdAt = asset.createdAt || (existing && existing.createdAt) || now;
+      asset.version = existing ? (existing.version||1)+1 : 1;
+      db.assets[asset.id] = asset;
+      save(db);
+      return asset;
+    },
+    async deleteAsset(id){ const db=load(); delete db.assets[id]; delete db.favorites[id]; db.recentlyUsed=db.recentlyUsed.filter(x=>x!==id); save(db); },
+    async toggleFavorite(id){ const db=load(); if(db.favorites[id]) delete db.favorites[id]; else db.favorites[id]=true; save(db); return !!db.favorites[id]; },
+    async listFavorites(){ const db=load(); return Object.values(db.assets).filter(a=>db.favorites[a.id]).map(a=>({...a, favorite:true})).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0)); },
+    async recordUsage(id){ const db=load(); db.recentlyUsed=[id, ...db.recentlyUsed.filter(x=>x!==id)].slice(0,20); save(db); },
+    async listRecentlyUsed(){ const db=load(); return db.recentlyUsed.map(id=>db.assets[id]).filter(Boolean).map(a=>({...a, favorite:!!db.favorites[a.id]})); },
+    async listAllTags(){
+      const db = load();
+      const set = new Set();
+      Object.values(db.assets).forEach(a=>(a.tags||[]).forEach(t=>set.add(t)));
+      return [...set].sort((a,b)=>a.localeCompare(b));
+    },
+    async listAllCategories(){
+      const db = load();
+      const set = new Set();
+      Object.values(db.assets).forEach(a=>{ if(a.category) set.add(a.category); });
+      return [...set].sort((a,b)=>a.localeCompare(b));
+    },
+  };
+})();
+
+function libGenId(prefix){ return prefix+'_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,8); }
+
+// Deterministic ID derived from the legacy store name -- re-running sync
+// on every Library open never creates duplicate wrapper assets for the
+// same underlying item.
+function libLegacyAssetId(kind, name){
+  let hash = 0;
+  const s = kind+'::'+name;
+  for(let i=0;i<s.length;i++){ hash = ((hash<<5)-hash+s.charCodeAt(i))|0; }
+  return 'asset_legacy_'+kind+'_'+Math.abs(hash).toString(36);
+}
+
+const LIB_DEFAULT_ORG_ID = 'org_my_library';
+const LIB_DEFAULT_COLLECTION_ID = 'col_imported';
+
+// Idempotent -- safe to call every time the Library opens. Picks up any
+// formation/sequence saved through the existing Save/Open flow that
+// doesn't have a Library wrapper yet, without touching or duplicating
+// anything already wrapped, and without ever modifying the underlying
+// legacy data itself -- the Library only ever adds metadata alongside
+// it, in its own separate store.
+async function syncLegacyLibraryItems(){
+  await LibraryStorage.saveOrganization({ id: LIB_DEFAULT_ORG_ID, name:'My Library', parentId:null, createdAt:Date.now() });
+  await LibraryStorage.saveCollection({ id: LIB_DEFAULT_COLLECTION_ID, orgId: LIB_DEFAULT_ORG_ID, name:'Imported Items', description:'Automatically kept in sync with formations and sequences saved through Save/Open.', createdAt:Date.now() });
+
+  const legacySources = [
+    { kind:'formation', storeKey:'wpStrategyFormationsV5', type:'formation', category:'Formation' },
+    { kind:'sequence', storeKey:'tpgTacticalPackagesV8', type:'sequence', category:'Sequence' },
+  ];
+  for(const src of legacySources){
+    let store = {};
+    try { store = JSON.parse(localStorage.getItem(src.storeKey)||'{}'); } catch(err){ store = {}; }
+    for(const [name, data] of Object.entries(store)){
+      const id = libLegacyAssetId(src.kind, name);
+      const existing = await LibraryStorage.getAsset(id);
+      if(existing) continue; // already wrapped -- any metadata the coach added in the Library is preserved
+      let createdAt = Date.now();
+      try { if(data && data.savedAt) createdAt = Date.parse(data.savedAt) || createdAt; } catch(err){}
+      await LibraryStorage.saveAsset({
+        id, type: src.type, title: name, description:'', author:'',
+        orgId: LIB_DEFAULT_ORG_ID, collectionId: LIB_DEFAULT_COLLECTION_ID,
+        ageGroup:'', category: src.category, difficulty:'', tags:[],
+        visibility:'private', estimatedDuration:null,
+        contentRef: { storeKey: src.storeKey, itemKey: name },
+        createdAt,
+      });
+    }
+  }
+}
+
+function libEsc(s){ const d=document.createElement('div'); d.textContent=String(s==null?'':s); return d.innerHTML; }
+function libAssetTypeLabel(type){ return { formation:'Formation', sequence:'Sequence', practice:'Practice Session', note:'Coach Note', evaluation:'Evaluation', skill:'Skill Exercise', event:'Event', video:'Video', document:'Document', resource:'Resource' }[type] || type; }
+
+let libState = { view:'all', orgId:null, collectionId:null, tag:null, search:'', detailAssetId:null, typeFilter:null };
+
+function showLibraryListStage(){
+  document.getElementById('libraryListStage').style.display = '';
+  document.getElementById('libraryDetailStage').style.display = 'none';
+  document.getElementById('libraryPanelTitle').textContent = 'Coaching Library';
+}
+function showLibraryDetailStage(){
+  document.getElementById('libraryListStage').style.display = 'none';
+  document.getElementById('libraryDetailStage').style.display = '';
+}
+
+async function openCoachingLibrary(){
+  await syncLegacyLibraryItems();
+  libState = { view:'all', orgId:null, collectionId:null, tag:null, search:'', detailAssetId:null, typeFilter:null };
+  const searchInput = document.getElementById('librarySearchInput');
+  if(searchInput) searchInput.value = '';
+  document.querySelectorAll('.libViewTab').forEach(t=>t.classList.toggle('active', t.dataset.view==='all'));
+  document.querySelectorAll('.libTypeFilterPill').forEach(t=>t.classList.toggle('active', t.dataset.type===''));
+  showLibraryListStage();
+  await renderLibraryContent();
+  openToolPanel('coachingLibraryPanel');
+}
+document.getElementById('openCoachingLibraryBtn')?.addEventListener('click', openCoachingLibrary);
+
+document.querySelectorAll('.libTypeFilterPill').forEach(pill=>{
+  pill.addEventListener('click', async ()=>{
+    document.querySelectorAll('.libTypeFilterPill').forEach(p=>p.classList.remove('active'));
+    pill.classList.add('active');
+    libState.typeFilter = pill.dataset.type || null;
+    await renderLibraryContent();
+  });
+});
+
+document.querySelectorAll('.libViewTab').forEach(tab=>{
+  tab.addEventListener('click', async ()=>{
+    document.querySelectorAll('.libViewTab').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    libState.view = tab.dataset.view;
+    libState.orgId = null; libState.collectionId = null; libState.tag = null;
+    await renderLibraryContent();
+  });
+});
+
+let _libSearchDebounce = null;
+document.getElementById('librarySearchInput')?.addEventListener('input', e=>{
+  clearTimeout(_libSearchDebounce);
+  const value = e.target.value;
+  _libSearchDebounce = setTimeout(async ()=>{
+    libState.search = value.trim();
+    if(libState.search && libState.view!=='all'){
+      // Searching implicitly broadens to "All" so results aren't hidden behind an unrelated tab/collection filter
+      libState.view = 'all'; libState.orgId=null; libState.collectionId=null; libState.tag=null;
+      document.querySelectorAll('.libViewTab').forEach(t=>t.classList.toggle('active', t.dataset.view==='all'));
+    }
+    await renderLibraryContent();
+  }, 200);
+});
+
+document.getElementById('libraryDetailBackBtn')?.addEventListener('click', async ()=>{
+  showLibraryListStage();
+  await renderLibraryContent();
+});
+
+function renderLibraryAssetGrid(assets, content){
+  content.style.display = 'grid';
+  content.innerHTML = '';
+  if(libState.typeFilter) assets = assets.filter(a=>a.type===libState.typeFilter);
+  if(!assets.length){ content.innerHTML = '<div class="libEmptyState">Nothing here yet.</div>'; return; }
+  assets.forEach(asset=>{
+    const card = document.createElement('button');
+    card.type='button'; card.className='libAssetCard';
+    const tagsHtml = (asset.tags||[]).slice(0,4).map(t=>'<span class="libTagChip">'+libEsc(t)+'</span>').join('');
+    card.innerHTML =
+      '<div class="libAssetCardTop">' +
+        '<span class="libAssetCardType">'+libAssetTypeLabel(asset.type)+'</span>' +
+        '<button type="button" class="libFavStar '+(asset.favorite?'active':'')+'" data-fav="'+asset.id+'">'+(asset.favorite?'\u2605':'\u2606')+'</button>' +
+      '</div>' +
+      '<div class="libAssetCardTitle">'+libEsc(asset.title||'Untitled')+'</div>' +
+      (asset.description?'<div class="libAssetCardDesc">'+libEsc(asset.description)+'</div>':'') +
+      '<div class="libAssetCardTags">'+tagsHtml+'</div>';
+    card.addEventListener('click', (e)=>{
+      if(e.target.closest('[data-fav]')) return;
+      openLibraryAssetDetail(asset.id);
+    });
+    card.querySelector('[data-fav]').addEventListener('click', async (e)=>{
+      e.stopPropagation();
+      await LibraryStorage.toggleFavorite(asset.id);
+      await renderLibraryContent();
+    });
+    content.appendChild(card);
+  });
+}
+
+async function renderLibraryContent(){
+  const content = document.getElementById('libraryContent');
+  const breadcrumb = document.getElementById('libraryBreadcrumb');
+  breadcrumb.innerHTML = '';
+  content.innerHTML = '';
+  content.style.display = 'grid';
+
+  if(libState.view === 'collections' && !libState.orgId){
+    const orgs = await LibraryStorage.listOrganizations();
+    const addCard = document.createElement('button');
+    addCard.type='button'; addCard.className='libCollectionCard libAddCard';
+    addCard.innerHTML = '<h4>+ New Organization</h4><p>Create a new top-level organization</p>';
+    addCard.onclick = async ()=>{
+      const name = (typeof MizeDialog!=='undefined') ? await MizeDialog.prompt('Organization name:') : null;
+      if(!name || !name.trim()) return;
+      const org = { id: libGenId('org'), name: name.trim(), parentId:null, createdAt: Date.now() };
+      await LibraryStorage.saveOrganization(org);
+      libState.orgId = org.id;
+      await renderLibraryContent();
+    };
+    content.appendChild(addCard);
+    orgs.forEach(org=>{
+      const isDefault = org.id === LIB_DEFAULT_ORG_ID;
+      const card = document.createElement('button');
+      card.type='button'; card.className='libCollectionCard';
+      card.innerHTML = '<h4>'+libEsc(org.name)+'</h4><p>Organization'+(isDefault?' (default)':'')+'</p>' +
+        '<button type="button" class="libCardEditBtn" data-edit-org="'+org.id+'">Edit</button>' +
+        (isDefault ? '' : '<button type="button" class="libCardDeleteBtn" data-del-org="'+org.id+'">Delete</button>');
+      card.onclick = async ()=>{ libState.orgId = org.id; await renderLibraryContent(); };
+      const editBtn = card.querySelector('[data-edit-org]');
+      editBtn.addEventListener('click', async (e)=>{
+        e.stopPropagation();
+        const name = (typeof MizeDialog!=='undefined') ? await MizeDialog.prompt('Organization name:', org.name) : null;
+        if(!name || !name.trim()) return;
+        org.name = name.trim();
+        await LibraryStorage.saveOrganization(org);
+        await renderLibraryContent();
+      });
+      const delBtn = card.querySelector('[data-del-org]');
+      if(delBtn) delBtn.addEventListener('click', async (e)=>{
+        e.stopPropagation();
+        const cols = await LibraryStorage.listCollections(org.id);
+        if(cols.length){ if(typeof MizeDialog!=='undefined') MizeDialog.alert('This organization still has '+cols.length+' collection(s) inside it. Move or delete those first.'); return; }
+        const ok = (typeof MizeDialog!=='undefined') ? await MizeDialog.confirm('Delete organization "'+org.name+'"?') : true;
+        if(!ok) return;
+        await LibraryStorage.deleteOrganization(org.id);
+        await renderLibraryContent();
+      });
+      content.appendChild(card);
+    });
+    return;
+  }
+  if(libState.view === 'collections' && libState.orgId && !libState.collectionId){
+    const org = await LibraryStorage.getOrganization(libState.orgId);
+    breadcrumb.innerHTML = '<button type="button" data-act="root">Coaching Library</button><span class="libCrumbSep">/</span><span>'+libEsc(org?org.name:'')+'</span>';
+    breadcrumb.querySelector('[data-act="root"]').onclick = async ()=>{ libState.orgId=null; await renderLibraryContent(); };
+    const cols = await LibraryStorage.listCollections(libState.orgId);
+    const addCard = document.createElement('button');
+    addCard.type='button'; addCard.className='libCollectionCard libAddCard';
+    addCard.innerHTML = '<h4>+ New Collection</h4><p>Create a new collection in '+libEsc(org?org.name:'this organization')+'</p>';
+    addCard.onclick = async ()=>{
+      const name = (typeof MizeDialog!=='undefined') ? await MizeDialog.prompt('Collection name:') : null;
+      if(!name || !name.trim()) return;
+      const description = (typeof MizeDialog!=='undefined') ? await MizeDialog.prompt('Description (optional):', '') : '';
+      const col = { id: libGenId('col'), orgId: libState.orgId, name: name.trim(), description: (description||'').trim(), createdAt: Date.now() };
+      await LibraryStorage.saveCollection(col);
+      libState.collectionId = col.id;
+      await renderLibraryContent();
+    };
+    content.appendChild(addCard);
+    cols.forEach(col=>{
+      const isDefault = col.id === LIB_DEFAULT_COLLECTION_ID;
+      const card = document.createElement('button');
+      card.type='button'; card.className='libCollectionCard';
+      card.innerHTML = '<h4>'+libEsc(col.name)+'</h4><p>'+libEsc(col.description||'')+(isDefault?' (default)':'')+'</p>' +
+        '<button type="button" class="libCardEditBtn" data-edit-col="'+col.id+'">Edit</button>' +
+        (isDefault ? '' : '<button type="button" class="libCardDeleteBtn" data-del-col="'+col.id+'">Delete</button>');
+      card.onclick = async ()=>{ libState.collectionId = col.id; await renderLibraryContent(); };
+      const editBtn = card.querySelector('[data-edit-col]');
+      editBtn.addEventListener('click', async (e)=>{
+        e.stopPropagation();
+        const name = (typeof MizeDialog!=='undefined') ? await MizeDialog.prompt('Collection name:', col.name) : null;
+        if(!name || !name.trim()) return;
+        const description = (typeof MizeDialog!=='undefined') ? await MizeDialog.prompt('Description (optional):', col.description||'') : col.description;
+        col.name = name.trim();
+        col.description = (description||'').trim();
+        await LibraryStorage.saveCollection(col);
+        await renderLibraryContent();
+      });
+      const delBtn = card.querySelector('[data-del-col]');
+      if(delBtn) delBtn.addEventListener('click', async (e)=>{
+        e.stopPropagation();
+        const assetsInCol = await LibraryStorage.listAssets({ collectionId: col.id });
+        if(assetsInCol.length){ if(typeof MizeDialog!=='undefined') MizeDialog.alert('This collection still has '+assetsInCol.length+' item(s) in it. Move or delete those first.'); return; }
+        const ok = (typeof MizeDialog!=='undefined') ? await MizeDialog.confirm('Delete collection "'+col.name+'"?') : true;
+        if(!ok) return;
+        await LibraryStorage.deleteCollection(col.id);
+        await renderLibraryContent();
+      });
+      content.appendChild(card);
+    });
+    return;
+  }
+  if(libState.view === 'collections' && libState.collectionId){
+    const org = await LibraryStorage.getOrganization(libState.orgId);
+    const col = await LibraryStorage.getCollection(libState.collectionId);
+    breadcrumb.innerHTML = '<button type="button" data-act="root">Coaching Library</button><span class="libCrumbSep">/</span><button type="button" data-act="org">'+libEsc(org?org.name:'')+'</button><span class="libCrumbSep">/</span><span>'+libEsc(col?col.name:'')+'</span>';
+    breadcrumb.querySelector('[data-act="root"]').onclick = async ()=>{ libState.orgId=null; libState.collectionId=null; await renderLibraryContent(); };
+    breadcrumb.querySelector('[data-act="org"]').onclick = async ()=>{ libState.collectionId=null; await renderLibraryContent(); };
+    const assets = await LibraryStorage.listAssets({ collectionId: libState.collectionId });
+    renderLibraryAssetGrid(assets, content);
+    return;
+  }
+  if(libState.view === 'tags' && !libState.tag){
+    const tags = await LibraryStorage.listAllTags();
+    content.style.display = 'block';
+    if(!tags.length){ content.innerHTML = '<div class="libEmptyState">No tags used yet. Add tags to an asset\u2019s details to see them here.</div>'; return; }
+    tags.forEach(tag=>{
+      const btn = document.createElement('button');
+      btn.type='button'; btn.className='libViewTab'; btn.textContent = tag;
+      btn.style.marginRight='6px'; btn.style.marginBottom='6px';
+      btn.onclick = async ()=>{ libState.tag = tag; await renderLibraryContent(); };
+      content.appendChild(btn);
+    });
+    return;
+  }
+  if(libState.view === 'tags' && libState.tag){
+    breadcrumb.innerHTML = '<button type="button" data-act="root">Coaching Library</button><span class="libCrumbSep">/</span><span>Tag: '+libEsc(libState.tag)+'</span>';
+    breadcrumb.querySelector('[data-act="root"]').onclick = async ()=>{ libState.tag=null; await renderLibraryContent(); };
+    const assets = await LibraryStorage.listAssets({ tag: libState.tag });
+    renderLibraryAssetGrid(assets, content);
+    return;
+  }
+
+  let assets;
+  if(libState.view === 'favorites') assets = await LibraryStorage.listFavorites();
+  else if(libState.view === 'recent') assets = await LibraryStorage.listRecentlyUsed();
+  else assets = await LibraryStorage.listAssets({ search: libState.search||undefined });
+  renderLibraryAssetGrid(assets, content);
+}
+
+const LIB_PRACTICE_ROLES = ['Arrival', 'Meeting', 'Warm-up', 'Drill', 'Tactical Concept', 'Correction', 'Variation', 'Video', 'Coach Notes', 'Session', 'Break', 'Departure', 'Other'];
+
+// Best-effort only -- "8:00 AM", "3pm", "15:00", or a bare hour like "8"
+// all parse; anything else returns null and sorts to the end of its day
+// rather than breaking the sort or guessing wrong.
+function libParseTimeToMinutes(timeStr){
+  if(!timeStr) return null;
+  const m = String(timeStr).trim().match(/^(\d{1,2}):?(\d{2})?\s*(AM|PM|am|pm)?$/);
+  if(!m) return null;
+  let hours = parseInt(m[1], 10);
+  const minutes = m[2] ? parseInt(m[2], 10) : 0;
+  const ampm = m[3] ? m[3].toUpperCase() : null;
+  if(ampm==='PM' && hours<12) hours += 12;
+  if(ampm==='AM' && hours===12) hours = 0;
+  if(hours>23 || minutes>59) return null;
+  return hours*60 + minutes;
+}
+
+// Explicit, coach-triggered action only -- never runs automatically, so
+// a manually-arranged order is never silently rewritten by a guess at
+// what a free-text time string means. Day is the reliable primary key
+// (a plain number); time is best-effort and secondary; anything missing
+// or unparseable sorts last within its group, preserving relative order
+// via the stable sort rather than scrambling ties.
+async function libSortItemsByDayTime(asset){
+  const items = asset.items || [];
+  const withIndex = items.map((item, idx)=>({item, idx}));
+  withIndex.sort((a,b)=>{
+    const dayA = (a.item.day!=null && a.item.day!=='') ? Number(a.item.day) : Infinity;
+    const dayB = (b.item.day!=null && b.item.day!=='') ? Number(b.item.day) : Infinity;
+    if(dayA !== dayB) return dayA - dayB;
+    const timeA = libParseTimeToMinutes(a.item.time);
+    const timeB = libParseTimeToMinutes(b.item.time);
+    const ta = timeA==null ? Infinity : timeA;
+    const tb = timeB==null ? Infinity : timeB;
+    if(ta !== tb) return ta - tb;
+    return a.idx - b.idx;
+  });
+  asset.items = withIndex.map(x=>x.item);
+  await LibraryStorage.saveAsset(asset);
+  await renderLibraryPracticeItemsList(asset);
+}
+
+async function renderLibraryPracticeItemsList(asset){
+  const container = document.getElementById('libPracticeItemsList');
+  if(!container) return;
+  const allAssets = await LibraryStorage.listAssets({});
+  const byId = {}; allAssets.forEach(a=>byId[a.id]=a);
+  asset.items = asset.items || [];
+  let html = '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">' +
+    '<label style="font-size:12.5px;font-weight:600;color:#39514e;">'+(asset.type==='event'?'Timeline':'Practice Plan')+'</label>' +
+    (asset.items.length>1 ? '<button type="button" id="libSortByDayTimeBtn" style="font-size:11px;padding:4px 10px;">Sort by Day &amp; Time</button>' : '') +
+  '</div>';
+  asset.items.forEach((item, idx)=>{
+    const ref = byId[item.assetId];
+    const roleOptions = LIB_PRACTICE_ROLES.map(r=>'<option value="'+r+'"'+(item.role===r?' selected':'')+'>'+r+'</option>').join('');
+    html +=
+      '<div class="libPracticeItem libPracticeItemFull">' +
+        '<div class="libPracticeItemTop">' +
+          '<span class="libPracticeItemNum">'+(idx+1)+'.</span>' +
+          '<input type="number" class="libPracticeItemDay" data-day-idx="'+idx+'" placeholder="Day" min="1" value="'+(item.day!=null?libEsc(item.day):'')+'">' +
+          '<input type="text" class="libPracticeItemTime" data-time-idx="'+idx+'" placeholder="time" value="'+libEsc(item.time||'')+'">' +
+          '<select class="libPracticeItemRole" data-role-idx="'+idx+'"><option value="">(role)</option>'+roleOptions+'</select>' +
+          '<span class="libPracticeItemTitle">'+libEsc(ref?ref.title:'(missing item)')+' <em>'+(ref?libAssetTypeLabel(ref.type):'')+'</em></span>' +
+        '</div>' +
+        '<div class="libPracticeItemActions">' +
+          '<input type="text" class="libPracticeItemNoteInput" data-note-idx="'+idx+'" placeholder="Note for this item (optional)" value="'+libEsc(item.note||'')+'">' +
+          '<button type="button" data-move-up="'+idx+'"'+(idx===0?' disabled':'')+'>&#8593;</button>' +
+          '<button type="button" data-move-down="'+idx+'"'+(idx===asset.items.length-1?' disabled':'')+'>&#8595;</button>' +
+          '<button type="button" data-remove-item="'+idx+'">Remove</button>' +
+        '</div>' +
+      '</div>';
+  });
+  html += '<select id="libPracticeAddSelect" style="width:100%;padding:8px;margin-top:6px;"><option value="">+ Add an item from the Library...</option>' +
+    allAssets.filter(a=>a.id!==asset.id).map(a=>'<option value="'+a.id+'">'+libEsc(a.title)+' ('+libAssetTypeLabel(a.type)+')</option>').join('') +
+    '</select>';
+  container.innerHTML = html;
+
+  document.getElementById('libSortByDayTimeBtn')?.addEventListener('click', async ()=>{
+    await libSortItemsByDayTime(asset);
+  });
+  container.querySelectorAll('[data-remove-item]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      asset.items.splice(+btn.dataset.removeItem, 1);
+      await LibraryStorage.saveAsset(asset);
+      await renderLibraryPracticeItemsList(asset);
+    });
+  });
+  container.querySelectorAll('[data-move-up]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const i = +btn.dataset.moveUp;
+      if(i<=0) return;
+      [asset.items[i-1], asset.items[i]] = [asset.items[i], asset.items[i-1]];
+      await LibraryStorage.saveAsset(asset);
+      await renderLibraryPracticeItemsList(asset);
+    });
+  });
+  container.querySelectorAll('[data-move-down]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const i = +btn.dataset.moveDown;
+      if(i>=asset.items.length-1) return;
+      [asset.items[i+1], asset.items[i]] = [asset.items[i], asset.items[i+1]];
+      await LibraryStorage.saveAsset(asset);
+      await renderLibraryPracticeItemsList(asset);
+    });
+  });
+  container.querySelectorAll('.libPracticeItemRole').forEach(sel=>{
+    sel.addEventListener('change', async ()=>{
+      const idx = +sel.dataset.roleIdx;
+      asset.items[idx].role = sel.value;
+      await LibraryStorage.saveAsset(asset);
+    });
+  });
+  container.querySelectorAll('.libPracticeItemDay').forEach(inp=>{
+    inp.addEventListener('change', async ()=>{
+      const idx = +inp.dataset.dayIdx;
+      asset.items[idx].day = inp.value===''?null:Number(inp.value);
+      await LibraryStorage.saveAsset(asset);
+    });
+  });
+  container.querySelectorAll('.libPracticeItemTime').forEach(inp=>{
+    inp.addEventListener('change', async ()=>{
+      const idx = +inp.dataset.timeIdx;
+      asset.items[idx].time = inp.value;
+      await LibraryStorage.saveAsset(asset);
+    });
+  });
+  container.querySelectorAll('.libPracticeItemNoteInput').forEach(inp=>{
+    inp.addEventListener('change', async ()=>{
+      const idx = +inp.dataset.noteIdx;
+      asset.items[idx].note = inp.value;
+      await LibraryStorage.saveAsset(asset);
+    });
+  });
+
+  document.getElementById('libPracticeAddSelect').addEventListener('change', async (e)=>{
+    if(!e.target.value) return;
+    asset.items = asset.items||[];
+    asset.items.push({ assetId:e.target.value, role:'', note:'', time:'', day:null });
+    await LibraryStorage.saveAsset(asset);
+    await renderLibraryPracticeItemsList(asset);
+  });
+}
+
+async function libBuildPresentationSlides(planAsset, visited){
+  visited = visited || new Set();
+  if(visited.has(planAsset.id)) return []; // circular reference guard -- skip rather than loop forever
+  visited.add(planAsset.id);
+  const items = planAsset.items || [];
+  const slides = [];
+  for(const item of items){
+    const ref = await LibraryStorage.getAsset(item.assetId);
+    if(!ref) continue; // reference no longer exists -- skip it rather than failing the whole presentation
+    if((ref.type==='formation' || ref.type==='sequence') && ref.contentRef){
+      slides.push({ kind: ref.type==='formation'?'formation':'package', refName: ref.contentRef.itemKey, title: ref.title, role: item.role, note: item.note, time: item.time, day: item.day });
+    } else if(ref.type==='practice' || ref.type==='event'){
+      // Flatten a referenced plan's own items inline, so an Event containing
+      // a Practice Session presents as one continuous walk-through rather
+      // than a single opaque slide the coach would have to exit out of.
+      const nested = await libBuildPresentationSlides(ref, visited);
+      slides.push(...nested);
+    } else {
+      let body = ref.noteBody||ref.description||'';
+      if(ref.url) body = (body?body+'\n\n':'')+'Link: '+ref.url;
+      slides.push({ kind:'text', title: ref.title, body, role: item.role, note: item.note, time: item.time, day: item.day });
+    }
+  }
+  return slides;
+}
+
+async function libPresentPlan(planAsset){
+  if(!(planAsset.items||[]).length){
+    if(typeof MizeDialog!=='undefined') MizeDialog.alert('This '+(planAsset.type==='event'?'event':'practice session')+' has no items yet -- add some from its detail view first.');
+    return;
+  }
+  const slides = await libBuildPresentationSlides(planAsset);
+  if(!slides.length){
+    if(typeof MizeDialog!=='undefined') MizeDialog.alert('None of this '+(planAsset.type==='event'?'event':'practice session')+'\u2019s items could be found -- they may have been deleted from the Library.');
+    return;
+  }
+  await LibraryStorage.recordUsage(planAsset.id);
+  presentSavedPresentation({ slides });
+}
+
+async function libOpenAssetInStudio(asset){
+  if((asset.type==='formation' || asset.type==='sequence') && asset.contentRef){
+    let store = {};
+    try { store = JSON.parse(localStorage.getItem(asset.contentRef.storeKey)||'{}'); } catch(err){ store = {}; }
+    const record = store[asset.contentRef.itemKey];
+    if(!record){
+      if(typeof MizeDialog!=='undefined') MizeDialog.alert('The original saved '+(asset.type==='formation'?'formation':'sequence')+' could not be found -- it may have been deleted or renamed outside the Library.');
+      return;
+    }
+    if(asset.type==='formation'){
+      recordHistory('Load Formation: '+asset.title);
+      loadState(formationRecordState(record));
+      resetTimelineForFormationLoad();
+    } else {
+      recordHistory('Load Sequence: '+asset.title);
+      if(frames.length) frames[currentFrame]=makeFrameState();
+      const pkg = MIZE.Storage.readRecord(record);
+      frames = pkg.frames||[pkg.current]; currentFrame=0; loadFrame(0);
+    }
+    await LibraryStorage.recordUsage(asset.id);
+    closeToolPanels();
+  }
+}
+
+const LIB_DEFAULT_CATEGORIES = ['Offense', 'Defense', 'Transition / Counterattack', 'Set Plays', 'Goalkeeper', 'Conditioning', 'Team Building / Communication'];
+async function libPopulateCategoryDatalist(){
+  const datalist = document.getElementById('libCategoryDatalist');
+  if(!datalist) return;
+  const used = await LibraryStorage.listAllCategories();
+  const all = [...new Set([...LIB_DEFAULT_CATEGORIES, ...used])].sort((a,b)=>a.localeCompare(b));
+  datalist.innerHTML = all.map(c=>'<option value="'+libEsc(c)+'">').join('');
+}
+
+async function libPopulateOrgCollectionSelects(asset){
+  const orgSelect = document.getElementById('libDetailOrgSelect');
+  const colSelect = document.getElementById('libDetailCollectionSelect');
+  if(!orgSelect || !colSelect) return;
+  const orgs = await LibraryStorage.listOrganizations();
+  orgSelect.innerHTML = orgs.map(o=>'<option value="'+o.id+'"'+(o.id===asset.orgId?' selected':'')+'>'+libEsc(o.name)+'</option>').join('');
+  async function refreshCollections(){
+    const cols = await LibraryStorage.listCollections(orgSelect.value);
+    colSelect.innerHTML = cols.map(c=>'<option value="'+c.id+'"'+(c.id===asset.collectionId?' selected':'')+'>'+libEsc(c.name)+'</option>').join('');
+    if(!cols.some(c=>c.id===asset.collectionId) && cols.length) colSelect.value = cols[0].id;
+  }
+  await refreshCollections();
+  orgSelect.addEventListener('change', refreshCollections);
+}
+
+async function openLibraryAssetDetail(assetId){
+  const asset = await LibraryStorage.getAsset(assetId);
+  if(!asset) return;
+  libState.detailAssetId = assetId;
+  showLibraryDetailStage();
+  document.getElementById('libraryPanelTitle').textContent = asset.title || 'Untitled';
+  const body = document.getElementById('libraryDetailBody');
+  const tagsValue = (asset.tags||[]).join(', ');
+  const isPlanType = asset.type==='practice' || asset.type==='event';
+  const isLinkType = asset.type==='video' || asset.type==='document' || asset.type==='resource';
+  const isTextType = ['note','evaluation','skill'].includes(asset.type) || isLinkType;
+  body.innerHTML =
+    '<div class="libFormRow"><label>Title</label><input type="text" id="libDetailTitle" value="'+libEsc(asset.title||'')+'"></div>' +
+    '<div class="libFormRow"><label>Description</label><textarea id="libDetailDesc">'+libEsc(asset.description||'')+'</textarea></div>' +
+    '<div class="libFormRow"><label>Author</label><input type="text" id="libDetailAuthor" value="'+libEsc(asset.author||'')+'"></div>' +
+    '<div class="libFormRow"><label>Age Group</label><input type="text" id="libDetailAgeGroup" value="'+libEsc(asset.ageGroup||'')+'" placeholder="e.g. U16"></div>' +
+    '<div class="libFormRow"><label>Category</label><input type="text" id="libDetailCategory" list="libCategoryDatalist" value="'+libEsc(asset.category||'')+'" placeholder="e.g. Offense, Defense, Transition, Goalkeeper"><datalist id="libCategoryDatalist"></datalist></div>' +
+    '<div class="libFormRow"><label>Organization</label><select id="libDetailOrgSelect"></select></div>' +
+    '<div class="libFormRow"><label>Collection</label><select id="libDetailCollectionSelect"></select></div>' +
+    '<div class="libFormRow"><label>Difficulty</label><select id="libDetailDifficulty">' +
+      '<option value=""'+(!asset.difficulty?' selected':'')+'>Not set</option>' +
+      '<option value="Beginner"'+(asset.difficulty==='Beginner'?' selected':'')+'>Beginner</option>' +
+      '<option value="Intermediate"'+(asset.difficulty==='Intermediate'?' selected':'')+'>Intermediate</option>' +
+      '<option value="Advanced"'+(asset.difficulty==='Advanced'?' selected':'')+'>Advanced</option>' +
+    '</select></div>' +
+    '<div class="libFormRow"><label>Tags (comma-separated)</label><input type="text" id="libDetailTags" value="'+libEsc(tagsValue)+'" placeholder="transition, counterattack, 6 on 5"></div>' +
+    '<div class="libFormRow"><label>Estimated Duration (minutes)</label><input type="text" id="libDetailDuration" value="'+(asset.estimatedDuration!=null?libEsc(asset.estimatedDuration):'')+'"></div>' +
+    (isPlanType ? '<div class="libFormRow"><label>Objectives</label><textarea id="libDetailObjectives" placeholder="What should this '+(asset.type==='event'?'event':'session')+' achieve?">'+libEsc(asset.objectives||'')+'</textarea></div>' : '') +
+    (isLinkType ? '<div class="libFormRow"><label>Link (optional -- leave blank as a placeholder until the content is ready)</label><input type="text" id="libDetailUrl" value="'+libEsc(asset.url||'')+'" placeholder="https://..."></div>' : '') +
+    (isTextType ? '<div class="libFormRow"><label>'+(asset.type==='evaluation'?'Evaluation Notes':asset.type==='skill'?'Exercise Description':asset.type==='video'?'Video Notes':asset.type==='document'?'Document Notes':asset.type==='resource'?'Resource Notes':'Notes')+'</label><textarea id="libDetailNoteBody" style="min-height:140px;">'+libEsc(asset.noteBody||'')+'</textarea></div>' : '') +
+    (isPlanType ? '<div id="libPracticeItemsList"></div>' : '') +
+    '<div class="libDetailActions">' +
+      '<button type="button" id="libDetailSaveBtn">Save Changes</button>' +
+      ((asset.type==='formation'||asset.type==='sequence') ? '<button type="button" id="libDetailOpenBtn">Open in Studio</button>' : '') +
+      (isPlanType ? '<button type="button" id="libDetailPresentBtn">Present</button>' : '') +
+      '<button type="button" id="libDetailFavBtn">'+(asset.favorite?'\u2605 Remove Favorite':'\u2606 Add to Favorites')+'</button>' +
+      '<button type="button" id="libDetailDeleteBtn" style="color:#b53434;border-color:#e0b8b8;">Delete</button>' +
+    '</div>';
+
+  await libPopulateOrgCollectionSelects(asset);
+  await libPopulateCategoryDatalist();
+  if(isPlanType) await renderLibraryPracticeItemsList(asset);
+
+  document.getElementById('libDetailSaveBtn').onclick = async ()=>{
+    asset.title = document.getElementById('libDetailTitle').value.trim() || 'Untitled';
+    asset.description = document.getElementById('libDetailDesc').value.trim();
+    asset.author = document.getElementById('libDetailAuthor').value.trim();
+    asset.ageGroup = document.getElementById('libDetailAgeGroup').value.trim();
+    asset.category = document.getElementById('libDetailCategory').value.trim();
+    asset.orgId = document.getElementById('libDetailOrgSelect').value || asset.orgId;
+    asset.collectionId = document.getElementById('libDetailCollectionSelect').value || asset.collectionId;
+    asset.difficulty = document.getElementById('libDetailDifficulty').value.trim();
+    asset.tags = document.getElementById('libDetailTags').value.split(',').map(t=>t.trim()).filter(Boolean);
+    const durRaw = document.getElementById('libDetailDuration').value.trim();
+    asset.estimatedDuration = durRaw ? (Number(durRaw)||null) : null;
+    if(['note','evaluation','skill','video','document','resource'].includes(asset.type)) asset.noteBody = document.getElementById('libDetailNoteBody').value;
+    if(asset.type==='practice' || asset.type==='event') asset.objectives = document.getElementById('libDetailObjectives').value.trim();
+    if(asset.type==='video' || asset.type==='document' || asset.type==='resource') asset.url = document.getElementById('libDetailUrl').value.trim();
+    await LibraryStorage.saveAsset(asset);
+    document.getElementById('libraryPanelTitle').textContent = asset.title;
+    if(typeof MizeDialog!=='undefined') MizeDialog.alert('Saved.');
+  };
+
+  const openBtn = document.getElementById('libDetailOpenBtn');
+  if(openBtn) openBtn.onclick = ()=> libOpenAssetInStudio(asset);
+
+  const presentBtn = document.getElementById('libDetailPresentBtn');
+  if(presentBtn) presentBtn.onclick = ()=> libPresentPlan(asset);
+
+  document.getElementById('libDetailFavBtn').onclick = async ()=>{
+    const isFav = await LibraryStorage.toggleFavorite(asset.id);
+    asset.favorite = isFav;
+    document.getElementById('libDetailFavBtn').textContent = isFav ? '\u2605 Remove Favorite' : '\u2606 Add to Favorites';
+  };
+
+  document.getElementById('libDetailDeleteBtn').onclick = async ()=>{
+    const ok = (typeof MizeDialog!=='undefined') ? await MizeDialog.confirm('Delete "'+asset.title+'" from the Coaching Library? This does not delete the underlying saved formation/sequence itself, only its Library entry.') : true;
+    if(!ok) return;
+    await LibraryStorage.deleteAsset(asset.id);
+    showLibraryListStage();
+    await renderLibraryContent();
+  };
+}
+
+document.getElementById('libraryNewNoteBtn')?.addEventListener('click', async ()=>{
+  const asset = {
+    id: libGenId('asset_note'), type:'note', title:'New Coach Note', description:'', author:'',
+    orgId: LIB_DEFAULT_ORG_ID, collectionId: LIB_DEFAULT_COLLECTION_ID,
+    ageGroup:'', category:'Coach Notes', difficulty:'', tags:[], visibility:'private',
+    estimatedDuration:null, noteBody:'',
+  };
+  await LibraryStorage.saveAsset(asset);
+  await openLibraryAssetDetail(asset.id);
+});
+
+document.getElementById('libraryNewPracticeBtn')?.addEventListener('click', async ()=>{
+  const asset = {
+    id: libGenId('asset_practice'), type:'practice', title:'New Practice Session', description:'', author:'',
+    orgId: LIB_DEFAULT_ORG_ID, collectionId: LIB_DEFAULT_COLLECTION_ID,
+    ageGroup:'', category:'Practice Sessions', difficulty:'', tags:[], visibility:'private',
+    estimatedDuration:null, items:[],
+  };
+  await LibraryStorage.saveAsset(asset);
+  await openLibraryAssetDetail(asset.id);
+});
+
+document.getElementById('libraryNewEvaluationBtn')?.addEventListener('click', async ()=>{
+  const asset = {
+    id: libGenId('asset_evaluation'), type:'evaluation', title:'New Evaluation', description:'', author:'',
+    orgId: LIB_DEFAULT_ORG_ID, collectionId: LIB_DEFAULT_COLLECTION_ID,
+    ageGroup:'', category:'', difficulty:'', tags:[], visibility:'private',
+    estimatedDuration:null, noteBody:'',
+  };
+  await LibraryStorage.saveAsset(asset);
+  await openLibraryAssetDetail(asset.id);
+});
+
+document.getElementById('libraryNewSkillBtn')?.addEventListener('click', async ()=>{
+  const asset = {
+    id: libGenId('asset_skill'), type:'skill', title:'New Skill Exercise', description:'', author:'',
+    orgId: LIB_DEFAULT_ORG_ID, collectionId: LIB_DEFAULT_COLLECTION_ID,
+    ageGroup:'', category:'', difficulty:'', tags:[], visibility:'private',
+    estimatedDuration:null, noteBody:'',
+  };
+  await LibraryStorage.saveAsset(asset);
+  await openLibraryAssetDetail(asset.id);
+});
+
+document.getElementById('libraryNewEventBtn')?.addEventListener('click', async ()=>{
+  const asset = {
+    id: libGenId('asset_event'), type:'event', title:'New Event', description:'', author:'',
+    orgId: LIB_DEFAULT_ORG_ID, collectionId: LIB_DEFAULT_COLLECTION_ID,
+    ageGroup:'', category:'', difficulty:'', tags:[], visibility:'private',
+    estimatedDuration:null, objectives:'', items:[],
+  };
+  await LibraryStorage.saveAsset(asset);
+  await openLibraryAssetDetail(asset.id);
+});
+
+document.getElementById('libraryNewVideoBtn')?.addEventListener('click', async ()=>{
+  const asset = {
+    id: libGenId('asset_video'), type:'video', title:'New Video', description:'', author:'',
+    orgId: LIB_DEFAULT_ORG_ID, collectionId: LIB_DEFAULT_COLLECTION_ID,
+    ageGroup:'', category:'', difficulty:'', tags:[], visibility:'private',
+    estimatedDuration:null, noteBody:'', url:'',
+  };
+  await LibraryStorage.saveAsset(asset);
+  await openLibraryAssetDetail(asset.id);
+});
+
+document.getElementById('libraryNewDocumentBtn')?.addEventListener('click', async ()=>{
+  const asset = {
+    id: libGenId('asset_document'), type:'document', title:'New Document', description:'', author:'',
+    orgId: LIB_DEFAULT_ORG_ID, collectionId: LIB_DEFAULT_COLLECTION_ID,
+    ageGroup:'', category:'', difficulty:'', tags:[], visibility:'private',
+    estimatedDuration:null, noteBody:'', url:'',
+  };
+  await LibraryStorage.saveAsset(asset);
+  await openLibraryAssetDetail(asset.id);
+});
+
+document.getElementById('libraryNewResourceBtn')?.addEventListener('click', async ()=>{
+  const asset = {
+    id: libGenId('asset_resource'), type:'resource', title:'New Resource', description:'', author:'',
+    orgId: LIB_DEFAULT_ORG_ID, collectionId: LIB_DEFAULT_COLLECTION_ID,
+    ageGroup:'', category:'', difficulty:'', tags:[], visibility:'private',
+    estimatedDuration:null, noteBody:'', url:'',
+  };
+  await LibraryStorage.saveAsset(asset);
+  await openLibraryAssetDetail(asset.id);
+});
 
 // ===== Smart screen-fit sizing =====
 // Goal: the actual playing surface (25x20m) plus the goal margins on x
