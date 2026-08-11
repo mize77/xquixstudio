@@ -1314,7 +1314,7 @@
   <div class="cmdCategory" data-cat="field">
     <button type="button" class="cmdCatHeader">Field <span class="chev">&#9656;</span></button>
     <div class="cmdFlyout">
-      <button id="quickViewToggleBtn" data-tip="Switch between Full Court and Front Court view in one tap. For Front Court (Zoomed), use View Options instead.">Toggle Full/Front Court</button>
+      <button id="quickViewToggleBtn" data-tip="Switch between Full Court and Front Court (Zoomed) view in one tap. For plain (non-zoomed) Front Court, use View Options instead.">Toggle Full/Front Court</button>
       <button id="viewToggleTab" data-tip="View options: Full Court, Front Court, or Front Court (Zoomed).">View Options</button>
       <button id="fieldZonesToggleBtn" data-tip="Field Zones: show reference zones around the goal.">Field Zones</button>
     </div>
@@ -7764,37 +7764,20 @@ function buildFirstCoachingSessionSteps(){
       allowedSelectors: '#tcPlayPauseBtn', // unconditional (unlike the highlight, which drops to nothing while playing) -- the coach should still be able to pause if they want, not just watch with no control at all
       validate: { type:'custom', fn: ()=> introFrames && currentFrame===introFrames.length-1 && !playing }
     },
-    { // Step 5 -- Front Court view, part 1: one-click switch to Front Court.
-      // Gives the rest of the tutorial's close-quarters work (attacker and
-      // defender positioning) a closer, easier-to-see view from here on.
-      // Uses the sidebar source button (not the QCB clone of it) since the
-      // Quick Command Bar itself isn't introduced to the coach until Step
-      // 9 -- referencing it here, before they've ever seen it explained,
-      // would be more confusing than helpful.
-      instruction: 'The scene has paused. Before marking any players, let\u2019s switch to a closer view. Open the Menu, then tap the highlighted "Toggle Full/Front Court" button under Field -- one tap switches straight to Front Court.',
-      onEnter(){ tutorialOpenCategory('field'); },
-      highlight: '#quickViewToggleBtn',
-      allowedSelectors: '#controlsPanel', // whole sidebar, matching the pattern used elsewhere for a sidebar-nested target
-      validate: { type:'custom', fn: ()=> typeof frontCourtActive!=='undefined' && frontCourtActive }
-    },
-    { // Step 6 -- Front Court (Zoomed) view, part 2: open View Options for
-      // an even closer zoom. The coach is already in Front Court from Step
-      // 5 above -- this is specifically about reaching the Zoomed variant,
-      // which the one-click toggle deliberately doesn't cover.
-      instruction: 'For an even closer view, tap the highlighted "View Options" button, then choose "Front Court (Zoomed)".',
-      onEnter(){ tutorialOpenCategory('field'); },
-      highlight: '#viewToggleTab',
-      allowedSelectors: '#controlsPanel',
-      validate: { type:'custom', fn: ()=> document.getElementById('viewPanel')?.classList.contains('open') }
-    },
-    { // Step 6a -- pick the zoomed option
-      instruction: 'Tap the highlighted "Front Court (Zoomed)" option for a closer view of the action.',
-      bannerSide: 'left', // was covering the option itself on a narrow phone screen
-      onEnter(){ tutorialHideTimelineRemote(); }, // not needed again until the outro plays at the very end -- keeps the view clear until then
-      highlight: '#viewOptionFrontCourtZoomed',
+    { // Step 5 -- Front Court (Zoomed) view: one-click switch via the Quick
+      // Command Bar. Gives the rest of the tutorial's close-quarters work
+      // (attacker and defender positioning) a closer, easier-to-see view
+      // from here on. The QCB is shown just for this one tap and hidden
+      // again right after via onValidated -- its formal introduction (how
+      // to open/close it via the "Quicks" edge tab) still happens
+      // properly at Step 9; this earlier appearance doesn't preempt that
+      // lesson, it's simply visible long enough for one tap.
+      instruction: 'The scene has paused. Before marking any players, let\u2019s switch to a closer view. In the Quick Command Bar, tap the highlighted "Switch to Front Court (Zoomed)" icon -- one tap gets you there.',
+      onEnter(){ tutorialShowQuickCommandBar(); tutorialHideTimelineRemote(); }, // remote not needed again until the outro plays at the very end -- keeps the view clear until then
+      highlight: '#quickCommandBarInner button[title^="Switch to Front Court"]',
       useShadeHighlight: true,
       validate: { type:'custom', fn: ()=> typeof frontCourtActive!=='undefined' && frontCourtActive && typeof frontCourtZoomed!=='undefined' && frontCourtZoomed },
-      onValidated(){ document.getElementById('controlsPanel')?.classList.remove('open'); } // the Menu isn't needed for any of the upcoming player-marking steps
+      onValidated(){ tutorialHideQuickCommandBar(); } // hidden again so Step 9's "tap Quicks to open it" framing still makes sense
     },
     { // Step 6b -- try the Front Court scroll gesture before marking any
       // players. #fcScrollZoneLeft/Right are two narrow strips at the
@@ -8694,9 +8677,7 @@ async function autoplayPerformStep(step){
   if(instr.includes('"Open Sequence"')) return autoplayClickTarget('#soMenuOpenSequence');
   if(instr.includes('First Coaching Session') && instr.includes('load it')) return autoplayClickTarget(step.highlight, {moveMs:700});
   if(instr.includes('start the intro')) return autoplayPlayAndWait();
-  if(instr.includes('"Toggle Full/Front Court" button')) return autoplayClickTarget('#quickViewToggleBtn');
-  if(instr.includes('"View Options" button')) return autoplayClickTarget('#viewToggleTab');
-  if(instr.includes('Front Court (Zoomed)')) return autoplayClickTarget('#viewOptionFrontCourtZoomed');
+  if(instr.includes('"Switch to Front Court (Zoomed)" icon')) return autoplayClickTarget(autoplayQCBButton('Switch to Front Court'));
   if(instr.includes('click-drag')) return autoplayScrollGesture();
   if(instr.includes('attacker who will run')) return autoplaySelectPlayer('W1');
   if(instr.includes('Grey shade = target spot')) return autoplayDragPlayerToGhost('W1');
@@ -10830,19 +10811,18 @@ function refreshShotClockPosition(){
   }
 }
 document.getElementById('quickViewToggleBtn')?.addEventListener('click', ()=>{
-  frontCourtZoomed=false;
   if(frontCourtActive){
+    frontCourtZoomed=false;
     toggleFrontCourt(false);
   } else {
-    toggleFrontCourt(true);
-    setFrontCourtDepth(FC_DEFAULT_DEPTH);
+    toggleFrontCourtZoom(true);
   }
   updateViewOptionCards();
 });
 function updateQuickViewToggleBtn(){
   const btn=document.getElementById('quickViewToggleBtn');
   if(!btn) return;
-  btn.textContent = frontCourtActive ? 'Switch to Full Court' : 'Switch to Front Court';
+  btn.textContent = frontCourtActive ? 'Switch to Full Court' : 'Switch to Front Court (Zoomed)';
   btn.classList.toggle('active', frontCourtActive);
 }
 function updateViewOptionCards(){
